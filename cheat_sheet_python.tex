@@ -117,22 +117,22 @@ import pandas as pd
 style = bash,
 numbers = none
 ]
-Graphics/
+graphics/
     __init__.py
-    Primitive/
+    primitives/
         __init__.py
         lines.py
         fill.py
         text.py
         ...
-    Graph2d/
+    graph2d/
         __init__.py
         plot2d.py
         ...
-    Graph3d/
+    graph3d/
         plot3d.py
         ...
-    Formats/
+    formats/
         __init__.py
         gif.py
         png.py
@@ -147,9 +147,9 @@ Graphics/
 style = ironpython,
 numbers = none
 ]
-import Graphics.Primitive.fill
+import graphics.primitives.fill
 \end{lstlisting}
-сначала выполнит файл \verb|__init__.py| в каталоге \texttt{Graphics}, а затем файл \verb|__init__.py| в каталоге \texttt{Primitive}.
+сначала выполнит файл \verb|__init__.py| в каталоге \texttt{graphics}, а затем файл \verb|__init__.py| в каталоге \texttt{primitives}.
 
 При импортировании модулей из пакета следует быть особенно внимательными и не использовать инструкцию вида \texttt{import module}, так как в Python 3, инструкция \texttt{import} предполагает, что указан абсолютный путь, и будет пытаться загрузить модуль из стандартной библиотеки. Использование инструкции импортирования по относительному пути более четко говорит о ваших намерениях.
 
@@ -158,10 +158,10 @@ import Graphics.Primitive.fill
 style = ironpython,
 numbers = none
 ]
-from ..Primitives import lines  # так можно!
+from ..primitives import lines  # так можно!
 \end{lstlisting}
 
-В этом примере символы \texttt{..} перемещают точку начала поиска на уровень выше в дереве каталогов, а имя \texttt{Primiitves} перемещает ее вниз, в другой каталог пакета.
+В этом примере символы \texttt{..} перемещают точку начала поиска на уровень выше в дереве каталогов, а имя \texttt{primiitves} перемещает ее вниз, в другой каталог пакета.
 
 Импорт по относительному пути может выполняться только при использовании инструкции импортирования вида
 \begin{lstlisting}[
@@ -176,7 +176,7 @@ from module import symbol
 style = ironpython,
 numbers = none
 ]
-import ..Primitives.lines  # Ошибка!
+import ..primitives.lines  # Ошибка!
 import .lines  # Ошибка!
 \end{lstlisting}
 будут рассматриваться как синтаксическая ошибка.
@@ -186,23 +186,44 @@ import .lines  # Ошибка!
 style = ironpython,
 numbers = none
 ]
-from .. import Primitives.lines  # Ошибка!
+from .. import primitives.lines  # Ошибка!
 \end{lstlisting}
 также считается ошибочной.
 
 Наконец, импортирование по относительному пути может выполняться только для модулей в пакете; не допускается использовать эту возможность для ссылки на модули, которые просто находятся в другом каталоге файловой системы.
 
-Импортирование по одному только имени пакета не приводит к импортированию всех модулей, содержащихся в этом пакете \cite[\strbook{199}]{beazley:python-2010}, однако, так как инструкция \texttt{import Graphics} выполнит файл \verb|__init__.py| в каталоге \texttt{Graphics}, в него можно добавить инструкции импортирования по относительному пути, которые автоматически загрузят все модули, как показано ниже
+Импортирование по одному только имени пакета не приводит к импортированию всех модулей, содержащихся в этом пакете \cite[\strbook{199}]{beazley:python-2010}, однако, так как инструкция \texttt{import graphics} выполнит файл \verb|__init__.py| в каталоге \texttt{graphics}, в него можно добавить инструкции импортирования по относительному пути, которые автоматически загрузят все модули, как показано ниже
 \begin{lstlisting}[
 style = ironpython,
 numbers = none
 ]
-# Graphics/__init__.py
-from . import Primitive, Graph2d, Graph3d
+# graphics/__init__.py
+from . import primitives, graph2d, graph3d
 
-# Graphics/Primitive/__init__.py
+# graphics/primitives/__init__.py
 from . import lines, fill, text
 ...
+\end{lstlisting}
+
+Для того чтобы сделать функции модулей подпакетов доступными из-под имени подпакетов (без обращения к модулям, в которых были объявлены эти функции), можно относительный импорт организовать следующим образом
+\begin{lstlisting}[
+style = ironpython,
+numbers =  none
+]
+# graphics/primitives/__init__.py
+from .fill import make_fill
+from .lines import make_lines
+...
+\end{lstlisting}
+
+Теперь вызвать, например, функцию \texttt{make\_fill} модуля \texttt{fill} подпакета \texttt{primitives} можно так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from graphics.primitives import make_fill
+# вместо
+from graphics.primitives.fill import make_fill
 \end{lstlisting}
 
 Наконец, когда интерпретатор импортирует пакет, он объявляет специальную переменную \verb|__path__|, содержащую список каталогов, в которых выполняется поиск модулей пакета (\verb|__path__| представляет собой аналог списка \texttt{sys.path} для пакета). Переменная \verb|__path__| доступна для программного кода в файлах \verb|__init__.py| и изначально содержит единственный элемент с именем каталога пакета.
