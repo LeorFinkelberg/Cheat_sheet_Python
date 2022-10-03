@@ -230,15 +230,109 @@ from graphics.primitives.fill import make_fill
 
 При необходимости пакет может добавлять в список \verb|__path__| дополнительные каталоги, чтобы изменить путь поиска модулей. Это может потребоваться в случае сложной организации дерева каталогов пакета в файловой системе, которая не совпадает с иерархией пакета.
 
+\section{Вычисления со словарями}
 
+Рассмотрим словарь, который отображает тикеры на цены
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+d = {
+    "ACME": 45.23,
+    "AAPL": 612.78,
+    "IBM": 205.55,
+    "HPQ": 37.20,
+    "FB": 10.75,
+}
+\end{lstlisting}
 
+Чтобы найти наименьшую/наибольшую цены с тикером можно обратить ключи и значения, а затем воспользоваться функций \texttt{zip()}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+min(zip(d.values(), d.keys()))  # (10.75, "FB")
+max(zip(d.values(), d.keys()))  # (612.78, "AAPL")
+\end{lstlisting}
+
+Важно иметь в виду, что функция \texttt{zip()} создает итератор, по которому можно пройти только один раз.
+
+Использование функции \texttt{zip()} решает задачу путем <<обращения>> словаря в последовательность пар (value, key). 
+
+Однако, вариант с функцией \texttt{zip()} требует большего времени, чем вариант на цикле
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+%%timeit -n 1_000_000
+# 639 ns +/- 3.04 ns per loop (mean +/- std. dev. of 7 runs, 1,000,000 loops each)
+min(zip(d.values(), d.values()))  
+
+%%timeit -n 1_000_000
+# 576 ns +/- 1.4 ns per loop (mean +/- std. dev. of 7 runs, 1,000,000 loops each)
+def find_min_pair(d: t.Dict[str, float]) -> t.Tuple[float, str]:
+    min_value = 10e+20
+    for key, value in d.items():
+        if d[key] < min_value:
+            min_value = d[key]
+            min_key = key
+    return (min_value, min_key)
+\end{lstlisting} 
+
+Пусть есть два словаря. Требуется выяснить, что у них общего
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+d1 = {"x": 1, "y": 2, "z": 3}
+d2 = {"w": 10, "x": 11, "y": 2}
+
+# Найти общие ключи
+d1.keys() & d2.keys()
+
+# Находим ключи, которые есть в d1, но которых нет в d2
+d1.keys() - d2.keys()
+
+# Находим общие пары (key, value)
+d1.items() & d2.items()  # {("y", 2)}
+\end{lstlisting}
+
+Словарь -- это отображение множества ключей на мнгожество значений. Метод словаря \texttt{keys()} возвращает \emph{объект ключей словаря} \texttt{dict\_keys}. Малоизвестная особенность этих объектов заключается в том, что они поддерживают набор операций над \emph{множествами}: объединение, пересечение и разность. Так что, если требуется выполнить этот набор операций над ключами словаря, то можно использовать объект ключей словаря напрямую, без предварительного конвертирования во множество \cite[\strbook{35}]{beazley:python_cookbook-2019}, т.е.
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+d1.keys() & d2.keys()  # {"x", "y"}
+# вместо
+set(d1.keys()) & set(d2.keys())  # {"x", "y"}
+# или
+set(d1.keys()).intersection(set(d2.keys()))  # {"x", "y"}
+\end{lstlisting}
+
+Найти пересечение индексов двух серий можно было бы так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+ser1 = pd.Series(d1, name="ser1")
+ser2 = pd.Series(d2, name="ser2")
+
+pd.merge(
+    ser1,
+    ser2,
+    left_index=True,
+    right_index=True,
+    how="inner"
+).index.to_list()  # ["x", "y"]
+\end{lstlisting}
 
 
 
 % Источники в "Газовой промышленности" нумеруются по мере упоминания 
 \begin{thebibliography}{99}\addcontentsline{toc}{section}{Список литературы}
-	\bibitem{koltzov-c-lang:2019}{ \emph{Кольцов Д.М.} Си на примерах. Практика, практика и только практика. -- СПб.: Наука и Техника, 2019. -- 288 с.}
 	\bibitem{beazley:python-2010}{\emph{Бизли Д.} Python. Подробный справочник. -- СПб.: Символ-Плюс, 2010. -- 864 с.}
+	
+	\bibitem{beazley:python_cookbook-2019}{\emph{Бизли Д.} Python. Книга рецептов. -- М.: ДМК Пресс., 2019. -- 648 с.}
 \end{thebibliography}
 
 %\listoffigures\addcontentsline{toc}{section}{Список иллюстраций}
