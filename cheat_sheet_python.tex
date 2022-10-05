@@ -275,7 +275,7 @@ min(zip(d.values(), d.values()))
 def find_min_pair(d: t.Dict[str, float]) -> t.Tuple[float, str]:
     min_value = 10e+20
     for key, value in d.items():
-        if d[key] < min_value:
+        if value < min_value:
             min_value = d[key]
             min_key = key
     return (min_value, min_key)
@@ -405,7 +405,57 @@ numbers = none
 min(records, key=itemgetter("uid"))
 \end{lstlisting}
 
+\section{Профилирование и замеры времени выполнения}
 
+При проведении измерений производительности нужно помнить, что любые результаты будут приблизительными. Функция \texttt{time.perf\_counter()} предоставляет наиболее точный таймер из доступных. Однако она все-таки измеряет \emph{внешнее время}, и {\color{red}на результаты влияют различные факторы, такие как нагруженность компьютера}.
+
+Если вы хотите получить время обработки, а не внешнее время, используйте \texttt{time.process\_time()} \cite[\strbook{574}]{beazley:python_cookbook-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from functools import wraps
+
+def timethis(func):
+    @wraps(func)
+    def wrapper(*args, **kwrags):
+        start = time.process_time()  # <- NB
+        r = func(*args, **kwargs)
+        stop = time.process_time()  # <- NB
+        print(f"{func.__module__}.{func.__name__} : {end - start}")
+        return r
+    return wrapper
+    
+@timethis
+def countdown(n):
+    while n > 0:
+        n -= 1
+
+countdown(100000)
+\end{lstlisting}
+
+Чтобы подсчитать время выполнения блока инструкций, можно определить менеджер контекста
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from contexlib import contexmanager
+
+@contextmanager
+def timeblock(label):
+    start = time.process_time()
+    try:
+       yield
+    finally:
+        end = time.process_time()
+        print(f"{label} : {end - start}")
+        
+with timeblock("counting"):
+	n = 100000
+	while n > 0:
+	    n -= 1
+	# counting: 1.55555
+\end{lstlisting}
 
 
 
