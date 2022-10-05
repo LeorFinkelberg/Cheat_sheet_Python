@@ -230,7 +230,9 @@ from graphics.primitives.fill import make_fill
 
 При необходимости пакет может добавлять в список \verb|__path__| дополнительные каталоги, чтобы изменить путь поиска модулей. Это может потребоваться в случае сложной организации дерева каталогов пакета в файловой системе, которая не совпадает с иерархией пакета.
 
-\section{Вычисления со словарями}
+\section{Некоторые приемы}
+
+\subsection{Вычисления со словарями}
 
 Рассмотрим словарь, который отображает тикеры на цены
 \begin{lstlisting}[
@@ -325,6 +327,87 @@ pd.merge(
     how="inner"
 ).index.to_list()  # ["x", "y"]
 \end{lstlisting}
+
+\subsection{Удаление дубликатов из последовательности}
+
+Вы хотите ислкючить дублирующиеся значения из последовательности, но при этом сохранить порядрк следования оставшихся элементов.
+
+Если значения в последовательности являютеся хешируемыми, задача может быть легко решена с использованием множества и генератора
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+%%timeit -n 100_000
+# 984 ns +/- 17.6 ns per loop (mean +/- std. dev. of 7 runs, 100,000 loops each)
+def dedupe(items: t.Iterable[int]) -> t.Iterable[int]:
+    seen: t.Set[int] = set()
+    for item in items:
+        if item not in seen:
+            yield item  # отдать элемент
+            seen.add(item)  # обновить множество
+            
+lst = [1, 5, 2, 1, 9, 1, 5, 10]
+list(dedupe(lst))  # [1, 5, 2, 9, 10]
+\end{lstlisting}
+
+Или так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+%%timeit -n 100_000
+# 663 ns +/- 26.2 ns per loop (mean +/- std. dev. of 7 runs, 100,000 loops each)
+def dedupe_list(items: t.Iterable[int]) -> t.Iterable[int]:
+    seen: t.Iterable[int] = []
+    for item in items:
+        if item not in seen:
+            seen.append(item)
+    return seen
+\end{lstlisting}
+
+\subsection{Сортировка списка словарей по общему ключу}
+
+У вас есть список словарей, и вы хотите отсортировать записи согласно одному или более полям. Сортировка структур этого типа легко выполняется с помощью функции \texttt{operator.itemgetter}. Именованный аргумент \texttt{key} должен быть \emph{вызываемым объектом} (т.е. объектом, в котором реализован метод \verb|__call__|). Функция \texttt{itemgetter()} создает такой вызываемый объект
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from operator import itergetter
+
+records: t.Iterable[dict] = [
+    {"fname": "Brian", "lname": "Jones", "uid": 1003},
+    {"fname": "David", "lname": "Beazley", "uid": 1002},
+    {"fname": "John", "lname": "Cleese", "uid": 1004},
+]
+
+# аргумент key ожидает получить вызываемый объект
+sorted(records, key=itemgetter("fname"))
+sorted(records, key=itergetter("uid"))
+# то же, что и
+sorted(records, key=lambda record: record["fname"])
+sorted(records, key=lambda record: record["uid"])
+\end{lstlisting}
+
+Функция \texttt{itemgetter()} может принимать несколько полей
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+sorted(records, key=itemtegger("lname", "fname"))
+\end{lstlisting}
+
+Эту технику можно применять и к функциям \texttt{min}, \texttt{max}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# найти строку с наименьшим значением идентификационного номера
+min(records, key=itemgetter("uid"))
+\end{lstlisting}
+
+
+
+
 
 
 
