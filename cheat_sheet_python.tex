@@ -273,7 +273,7 @@ min(zip(d.values(), d.values()))
 %%timeit -n 1_000_000
 # 576 ns +/- 1.4 ns per loop (mean +/- std. dev. of 7 runs, 1,000,000 loops each)
 def find_min_pair(d: t.Dict[str, float]) -> t.Tuple[float, str]:
-    min_value = 10e+20
+    min_value = float("inf")
     for key, value in d.items():
         if value < min_value:
             min_value = d[key]
