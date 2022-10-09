@@ -514,6 +514,62 @@ with timeblock("counting"):
 	# counting: 1.55555
 \end{lstlisting}
 
+\section{Итераторы и генераторы}
+
+В большинстве случаев для прохода по итериуемому объекту используется цикл \texttt{for}. Однако иногда задачи требуют более точного контроля лежащего в основе механизма итераций. 
+
+Следующий код иллюстрирует базовые механизмы того, что происходит во время итерирования
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+items = [1, 2, 3] # Итерируемый объект
+# Получаем объект итератора
+# Функция iter(items) вызывает метод итерируемого объекта items.__iter__()
+it = iter(items) # Итератор
+# Запускаем итератор
+next(it) # Вызывается it.__next__() -> 1
+next(it) # -> 2
+next(it) # -> 3
+next(it) # Возбуждается исключение StopIteration
+\end{lstlisting}
+
+Список \texttt{items} как \emph{итерируемый объект} имеет метод \verb|__iter__()|, который должен возвращать \emph{объект-итератора} (\texttt{it}). У объекта-итератора должен быть метод \verb|__next__()| для перебора элементов. Вот функция \texttt{next(it)} и вызывает метод \verb|__next__()| объекта-итератора для получения следующего элемента. Когда список исчерпывается, возбуждается исключение \texttt{StopIteration}.
+
+\emph{Протокол итераций} Python требует, чтобы метод \verb|__iter__()| возвращал специальный объект-итератор, в котором реализован метод \verb|__next__()|, который выполняет итерацию \cite[\strbook{128}]{beazley:python_cookbook-2019}. Функция \texttt{iter()} просто вовзвращает внутренний итератор, вызывая \verb|s.__iter__()|.
+
+\emph{Протокол итератора} Python требует \verb|__iter__()|, чтобы вернуть специальный \emph{объект итератора}, в котором реализован метод \verb|__next__()|, а исключение \texttt{StopIteration} используется для подачи сигнала о завершении \cite[\strbook{131}]{beazley:python_cookbook-2019}.
+
+Когда поток управления покидает тело генераторной функции, возбуждается исключение \texttt{StopIteration}.
+
+Метод \verb|__iter__()| \emph{итерируемого объекта} может быть реализован как обычная \emph{генераторная функция} \cite[\strbook{133}]{beazley:python_cookbook-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class linehistory:
+    ...
+    def __iter__(self):
+        for lineno, line in enumerate(self.lines, 1):
+            self.history.append((lineno, line))
+            yield line
+\end{lstlisting}
+
+Для того чтобы пропустить первые несколько элементов по какому-то условию, можно воспользоваться функцией \texttt{itertools.dropwhile}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from itertools import dropwhile
+
+def read_wo_header(file_name: str):
+    with open(file_name, mode="r") as f:
+        for line in dropwhile(lambda line: line.startswith("#"), f):
+            print(line.rstrip())
+\end{lstlisting}
+
+Возвращаемый итератор отбрасывает первые элементы в последовательности до тех пор, пока предоставленная функция возвращает \texttt{True}.
+
 
 
 
@@ -527,6 +583,6 @@ with timeblock("counting"):
 
 %\listoffigures\addcontentsline{toc}{section}{Список иллюстраций}
 
-\lstlistoflistings\addcontentsline{toc}{section}{Список листингов}
+%\lstlistoflistings\addcontentsline{toc}{section}{Список листингов}
 
 \end{document}
