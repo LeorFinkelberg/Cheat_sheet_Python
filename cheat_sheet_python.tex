@@ -609,6 +609,44 @@ for f in funcs:
 # 2
 \end{lstlisting}
 
+\section{Передача дополнительного состояния с функциями обратного вызова}
+
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+import typing as t
+
+def apply_async(
+    func: t.Callable,
+    args: t.Tuple[t.Union[str, int],
+    *,
+    callback: t.Callable]
+) -> t.NoReturn:
+    result: t.Union[str, int] = func(*args)
+    callback(result)
+    
+def add(x: int, y: int) -> int:
+    return x + y
+\end{lstlisting}
+
+Для хранения состояния можно использовать \emph{замыкание} \cite[\strbook{238}]{beazley:python_cookbook-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def make_handler():
+    count = 0
+    def handler(result: t.Union[str, int]) -> t.NoReturn:
+        nonlocal count
+        count += 1
+        print(f"[{count}] Got: {result}")
+    return handler
+    
+handler = make_handler()
+apply_async(add, (2, 3), callback=handler)  # [1] Got: 5
+apply_async(add, ("hello", "world"), callback=handler)  # [2] Got: hello world 
+\end{lstlisting}
 
 
 
