@@ -750,6 +750,39 @@ Computing area
 
 В этом случае все операции получения значения проводятся через функцию-геттер свойства. Это менее эффективно, чем простой поиск значения в словаре экземпляра.
 
+Еще можно просто задекорировать свойство декоратором \texttt{lru\_cache}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from functools import lru_cache
+
+class Circle:
+    def __init__(self, radius: float):
+        self.radius = radius
+        
+    @property
+    @lru_cacha
+    def area(self):
+        print("Computing area")
+        return math.pi * self.radius ** 2
+        
+    @property
+    @lru_cache
+    def perimeter(self):
+        print("Computing perimeter")
+        return 2 * math.pi * self.radius
+        
+        
+>>> circle = Circle(4.0)
+>>> circle.area
+# Computing area
+# 50.26...
+>>> circle.area  # 50.26...
+\end{lstlisting}
+
+
+
 
 
 
