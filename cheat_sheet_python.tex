@@ -648,6 +648,107 @@ apply_async(add, (2, 3), callback=handler)  # [1] Got: 5
 apply_async(add, ("hello", "world"), callback=handler)  # [2] Got: hello world 
 \end{lstlisting}
 
+\section{Использование лениво вычисляемых свойств}
+
+Вы хотите определить доступный только для чтения атрибут как свойство, которое вычисляется при доступе к нему. Однако после того, как доступ произойдет, значение должно кешироваться и не пересчитываться при следующих запросах.
+
+Дескпритор -- класс, который реализует три ключевые операции доступа к атрибутам (получения, присваивания и удаления) в форме специальных методов \verb|__get__()|, \verb|__set__()| и \verb|__delete__()|.
+
+Эффективный путь определинея ленивых атрибутов -- это использование \emph{класса-дескриптора} \cite[\strbook{271}]{beazley:python_cookbook-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# дескрипторный класс
+class lazyproperty:
+    def __init__(self, f: t.Callable):
+        self.f = f
+        
+    def __get__(self, instance, cls):
+        if instance is None:
+            # Если дескриптор вызывать через объект управляющего класса,
+            # например как Circle.area, то instance=None и будет возвращена
+            # ссылка на объект экземпляра дескриптора
+            return self  
+        else:
+            value = self.f(instance)
+            setattr(instance, self.f.__name__, value)
+            return value
+\end{lstlisting}
+
+Чтобы использовать этот код, вы можете применить его в классе
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class Circle:
+    def __init__(self, radius: float):
+        self.radius = radius
+        
+    @lazyproperty
+    def area(self):
+        print("Computing area")
+        return math.pi * self.radius ** 2
+    
+    @lazyproperty
+    def perimeter(self):
+        print("Computing perimeter")
+        return 2 * math.pi * self.radius
+\end{lstlisting}
+
+Вот пример использования
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+>>> c = Circle(radius=4.0)
+>>> c.area
+# Computing area
+# 50.26...
+>>> c.area  # 50.26...
+\end{lstlisting}
+
+Во многих случаях цель применения лениво вычисляемых атрибутов заключается в увеличении производительности. Например, вы можете избежать вычисления значений, если только они действительно где-то не нужны.
+
+Когда дескриптор помещается в определение класса, его методы \verb|__get__()|, \verb|__set__()| и \verb|__delete__()| задействуются при доступе к атрибуту. Но если дескриптор определяет только метод \verb|__get__()|, то у него намного более слабое связывание, нежели обычно. В частности, метод \verb|__get__()| срабатывает, \emph{только если атрибут}, к которому осуществляется доступ, \emph{отсутствует в словаре экзмпляра} управляющего класса (в данном случае класса \texttt{Circle}) \cite[\strbook{272}]{beazley:python_cookbook-2019}.
+
+Класс \texttt{lazyproperty} использует это так: он заставляет метод \verb|__get__()| сохранять вычисленное значение в экземпляре, используя то же имя, что и само свойство. С помощью этого значение сохраняется в словаре экземпляра и \underline{отключает будущие вычисления свойства}.
+
+Возможный недостаток этого рецепта в том, что вычисленное значение становится изменяемым после создания. То есть значение, например, свойства \texttt{area} можн затереть.
+
+Если это проблема, вы можете использовать немного менее эффективное решение \cite[\strbook{273}]{beazley:python_cookbook-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def lazyproperty(func):
+    name = "_lazy_" + func.__name__
+    @property
+    def lazy(self):
+        if hasattr(self, name):
+            return getattr(self, name)
+        else:
+            value = func(self)
+            setattr(self, name, value)
+            return value
+    return lazy
+\end{lstlisting}
+
+В этом случае операции присваивания недоступны
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+>>> c = Circle(4.0)
+>>> c.area
+Computing area
+50.26...
+>>> c.area
+50.26...
+>>> c.area = 25  # Поднимется исключение AttributeError
+\end{lstlisting}
+
+В этом случае все операции получения значения проводятся через функцию-геттер свойства. Это менее эффективно, чем простой поиск значения в словаре экземпляра.
 
 
 
