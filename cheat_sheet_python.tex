@@ -782,6 +782,56 @@ class Circle:
 \end{lstlisting}
 
 
+\section{Определение более одного конструктора в классе}
+
+Вы пишите класс и хотите, чтобы пользователи могли создавать экземпляры не только лишь единственным способом, предоставленным \verb|__init__()|.
+
+Чтобы определить класс с более чем одним конструктором, вы должны использовать метод класса
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class Circle:
+    def __init__(self, radius: float, color: str = "black"):
+         """
+         Первичный конструктор
+         """
+         self.radius = radius
+         self.color = color
+    
+    @classmethod
+    def make_default_circle(cls):
+        """
+        Альтернативный конструктор. Конструктор тривиального класса
+        """
+        return cls(radius=1.0, color="red")
+    
+    @property
+    @lru_cache
+    def area(self):
+        print("Computing area")
+        return math.pi * self.radius ** 2
+    
+    @property
+    @lru_cache
+    def perimeter(self):
+        print("Computing perimeter")
+        return 2 *  math.pi * self.radius
+    
+    def __repr__(self):
+        return f"{type(self).__name__}(radius={self.radius}, color={self.color})"
+    
+    def get_params(self) -> dict:
+        return {"raidus": self.radius, "color": self.color}
+\end{lstlisting}
+
+Одно из главных применений \emph{методов класса} -- это определение \emph{альтренативных конструкторов} \cite[\strbook{294}]{beazley:python_cookbook-2019}. 
+
+При определении класса с множественными конструкторами необходимо делать функцию \verb|__init__()| максимально простой -- она должна просто присваивать атрибутам значения. А вот уже альтернативные конструкторы будут вызываться при необходимости выполнения продвинутых операций.
+
+
+
+
 
 
 
