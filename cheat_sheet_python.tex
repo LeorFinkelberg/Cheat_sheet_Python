@@ -851,9 +851,55 @@ p = Point(2, 3)
 operator.methodcaller("distance", 0, 0)(p)
 \end{lstlisting}
 
+Функция \texttt{methodcaller()} может быть полезна, например, в следующем случае
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class Person:
+    def __init__(self, name: str, job: str):
+        self.name = name
+        self.job = job
+        
+    def action_1(self):
+        return "Action-1"
+        
+    def action_2(self):
+        return "Action-2"
+        
+    def action_N(self):
+        return "Action-N"
+\end{lstlisting}
 
+Вызвать действие теперь можно так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def make(*, obj, action: str):
+    if hasattr(obj, action):
+        return methodcaller(action)(obj)
+    else:
+        raise ValueError(f"Object '{type(obj).__name__}' has't action '{action}' ...")
+        
+leor = Person(name="Leor", job="ML")   
+make(obj=leor, action="action_1")  # Action-1
+make(obj=leor, action="action_2")  # Action-2
+make(obj=leor, actin="action_10")  # ValueError
+\end{lstlisting}
 
-
+Без \texttt{methodcaller()} пришлось бы писать что-то вроде
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def bad_make(*, obj, action: str):
+    if action == "action_1":
+        obj.action_1()
+    elif action == "action_2":
+        obj.action_2()
+    ...
+\end{lstlisting}
 
 
 
