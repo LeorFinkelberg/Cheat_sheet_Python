@@ -901,6 +901,46 @@ def bad_make(*, obj, action: str):
     ...
 \end{lstlisting}
 
+\section{Параметрические декораторы}
+
+Требуется создать функцию-декторатор, которая принимала бы аргументы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from functools import wraps
+import logging
+
+# level, name и message -- это параметры декоратора
+def logged(level, name=None, message=None):
+    # это обычный декоратор, аргумент func которого ссылается на декорируемую функцию
+    def decorate(func: t.Callable):
+        logname = name if name else func.__module__
+        log = logging.getLogger(logname)
+        logmsg = message if message else func.__name__
+        
+        @wraps(func)
+        # args и kwargs -- это аргументы задекорированной функции
+        def wrapper(*args, **kwargs):
+            log.log(level, logmsg)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorate
+    
+# Пример использования
+@logged(logging.DEBUG)  # -> @decorate: add = deocrate(add) -> wrapper || add -> wrapper
+def add(x, y):
+    return x + y
+    
+@logged(logging.CRITICAL, "example")
+def spam():
+    print("Spam!")
+\end{lstlisting}
+
+Можно считать, что после объявления функции \texttt{add} вместо выражения \verb|@logged(logging.DEBUG)| стоит \verb|@decorate|, но при этом еще доступна переменная \verb|level| со значением \verb|@logging.DEBUG|, а также переменные \texttt{name} и \texttt{message} со значением \texttt{None}. Аргумент функции \texttt{decorate} получает ссылку на декорируемую функцию \texttt{add}. Затем локальные переменные \texttt{logname}, \texttt{log} и \texttt{logmsg} получают значения, после чего возвращается ссылка на вложенную функцию \texttt{wrapper}. Таким образом, при вызове функции \texttt{add} будет вызываться функция \texttt{wrapper}.
+
+
+
 
 
 
