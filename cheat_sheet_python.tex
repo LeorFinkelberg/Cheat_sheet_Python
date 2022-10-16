@@ -939,6 +939,96 @@ def spam():
 
 Можно считать, что после объявления функции \texttt{add} вместо выражения \verb|@logged(logging.DEBUG)| стоит \verb|@decorate|, но при этом еще доступна переменная \verb|level| со значением \verb|@logging.DEBUG|, а также переменные \texttt{name} и \texttt{message} со значением \texttt{None}. Аргумент функции \texttt{decorate} получает ссылку на декорируемую функцию \texttt{add}. Затем локальные переменные \texttt{logname}, \texttt{log} и \texttt{logmsg} получают значения, после чего возвращается ссылка на вложенную функцию \texttt{wrapper}. Таким образом, при вызове функции \texttt{add} будет вызываться функция \texttt{wrapper}.
 
+\section{Определение декоратора, принимающего необязательный аргумент}
+
+Вы хотели бы написать один декоратор, который можно было бы использовать и без аргументов -- \verb|@decorator|, и с необязательными аргументами \verb|@decorator(x, y, z)| \cite[\strbook{339}]{beazley:python_cookbook-2019}.
+
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from functools import wraps, partial
+import logging
+
+def logged(func=None, *, level=logging.DEBUG, name=None, message=None):
+    if func is None:
+        return partial(logged, level=level, name=name, message=message)
+        
+    logname = name if name else func.__module__
+    log = logging.getLogger(logname)
+    logmsg = message if message else func.__name__
+    
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        log.log(level, logmsg)
+        return func(*args, **kwargs)
+    return wrapper
+    
+# Пример использования
+@logged
+def add(x, y):
+    return x + y
+    
+@logged(level=logging.CRITICAL, name="example")
+def spam():
+    print("Spam")
+\end{lstlisting}
+
+Этот рецепт просто заставляет декоратор одинаково работать и с дополнительными скобками, и без.
+
+Чтобы понять принцип работы кода, вы должны четко понимать то, как декораторы применяются к фукнциям, а также условия их вызова. Для простого декоратора, такого как этот
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+@logged  # logged(func=add, ...)
+def add(x, y):
+    return x + y
+\end{lstlisting}
+последовательность вызова будет такой
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def add(x, y):
+    return x + y
+    
+add = logged(add)
+\end{lstlisting}
+
+В этом случае обертываемая функция просто передается в \texttt{logged} первым аргументом. Поэтому в решении первый аргумент \texttt{logged()} -- это обертываемая функция. Все остальные аргументы должны иметь значения по умолчанию.
+
+Для декоратора, принимающего аргументы, такого как этот
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+@logged(level=logging.CRITICAL, name="example")  # logged(func=None, ...)
+def spam():
+    print("Spam")
+\end{lstlisting}
+последовательность вызова будет такой
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def spam():
+    print("Spam")
+
+spam = logged(level=logging.CRITICAL, name="example")(spam)
+\end{lstlisting}
+
+При первичном вызове \verb|logged()| обертываемая функция не передается. Так что в декораторе она должна быть необязательной. Это, в свою очередь, заставляет другие аргументы быть именованными. Более того, когда аргументы переданы, декоратор должен вернуть функцию, которая принимает функцию и оборачивает ее. Чтобы сделать это, в решении используется хитрый трюк с \texttt{functools.partial}. Если точнее, он просто возвращает частично примененную версию себя, где все аргументы зафиксированы, за исключением обертываемой функции.
+
+Таким образом, при повторном вызове функции \texttt{logged} через \texttt{partial} вызов будет выглядеть следующим образом
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+spam = logged(func=spam, level=logging.CRITICAL, name="example", message=None)
+\end{lstlisting}
+
+
 
 
 
