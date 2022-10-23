@@ -9,7 +9,7 @@
 
 
 \begin{document}
-\title{Некоторые вопросы программирования на языке Python}
+\title{Некоторые вопросы программирования на языке Python и приемы работы со специализированными библиотеками}
 
 \author{}
 
@@ -1162,11 +1162,197 @@ spam = logged(func=spam, level=logging.CRITICAL, name="example", message=None)
 {\color{blue}GIL влияет только на программы, сильно нагружающие CPU} (то есть те, в которых вычисления доминируют). Если ваша программа в основном занимается вводом-выводом, что типично для сетевых коммуникаций, потоки часто являются разумным выбором, потому что они проводят большую часть времени в ожидании.
 
 
+\section{Приемы работы с библиотекой Pandas}
 
+Посмотреть какие строки значений (а не индексы) кадра данных попали в ассоциированные группы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.groupby("color").apply(lambda group: group["col_name"])
+"""
+   color  col_name
+0   blue  73.0
+1  green  52.0
+2  green   NaN
+3  green  77.0
+4   blue   NaN
+5  green  86.0
+6    red  73.0
+7    red   NaN
+8  green  77.0
+9    red  81.0
+"""
 
+# вывести индексы строк, по соответсвующим группам можно с помощью атрибута groups
+df.groupby("color").groups
+# {'blue': [0, 4], 'green': [1, 2, 3, 5, 8], 'red': [6, 7, 9]}
+\end{lstlisting}
 
+Заполнить пропущенные значения средним на сгруппированном по некоторому полю кадре данных
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.groupby("color").apply(
+    lambda group: group.fillna(group["col_name"].mean())
+)
+\end{lstlisting}
 
+При проведении разведочного анализа данных лучше всего сначала загрузить данные и исследовать их с помощью запросов/логического отбора. Затем создайте индекс, если ваши данные поддерживают его или если вам требуется повышенная производительность \cite[\strbook{115}]{heydt:pandas-2019}. Операции поиска с использованием индекса обычно выполняются быстрее. В силу лучшей производительности выполнение поиска по индексу (в тех случаях, когда это возможно) обычно является оптимальным решением. Недостаток использования индекса заключается в том, что потребуется время на его создание, кроме того, он занимает больше памяти.
 
+Выполнить слияние кадров данных можно с помощью функции \texttt{pd.merge} или метода \texttt{.merge}. По умолчанию слияние выполняется по \emph{общим меткам столбцов}, однако сливать кадры данных можно и \emph{по строкам с общими индексами} \cite[\strbook{230}]{heydt:pandas-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# Слияние по строкам
+# Нужно задать оба параметра!
+left.merge(right, left_index=True, right_index=True)
+\end{lstlisting}
+
+Кроме того, библиотека pandas предлагает метод \texttt{.join()}, который можно использовать для выполнения соединения с помощью \emph{индексных меток} двух объектов \texttt{DataFrame} (вместо значений столбцов) \cite[\strbook{232}]{heydt:pandas-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# Слияние по строкам
+# Здесь предполагается, что кадры данных имеют
+# дублирующиеся имена столбцов, поэтому мы задаем lsuffix и rsuffix
+left.join(right, lsuffix="_left", rsuffix="_right")
+\end{lstlisting}
+
+\remark{
+Метод \texttt{.join()} по умолчанию используется \emph{внешнее соединение}, в отличие от метода \texttt{.merge()}, в котором по умолчанию применяется \emph{внутренее соединение}.
+}
+
+\emph{Состыковка} (stack) помещает уровень индекса столбцов в новый уровень индекса строк
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df = pd.DataFrame({
+    "a": [1, 2],
+    "b": [100, 200]
+})
+"""
+     a    b
+one  1  100
+two  2  200
+"""
+df.stack()
+"""
+one  a      1
+	   b    100
+two  a      2
+ 	   b    200
+"""
+df.loc[("one", "b")]  # 100
+\end{lstlisting}
+
+Состыковку удобно применять к результатам аггрегации на группах
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+df.groupby("color")[["key1", "key4"]].agg([np.mean, np.std])
+"""
+           key1            key4
+           mean       std  mean        std
+color
+blue   0.904027  0.508690  73.5  21.920310
+green -0.493756  1.025554  65.0   9.899495
+red   -0.399363       NaN  55.0        NaN
+"""
+# Состыковка
+res = df.groupby("color")[["key1", "key4"]].agg([np.mean, np.std]).stack()
+"""
+                key1       key4
+color
+blue  mean  0.904027  73.500000
+      std   0.508690  21.920310
+green mean -0.493756  65.000000
+      std   1.025554   9.899495
+red   mean -0.399363  55.000000
+"""
+res.loc[("blue", "mean")]
+"""
+key1     0.904027
+key4    73.500000
+Name: (blue, mean), dtype: float64
+"""
+\end{lstlisting}
+
+При построении агрегатов со сложным именем можно воспользоваться псевдонимами
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.groupby("color")[["key1", "key2"]].agg([("MEAN", np.nanmean), ("STD", np.nanstd)]).stack()
+"""
+                key1      key2
+color
+blue  MEAN  0.544329  0.731969
+green MEAN  0.231420  1.272040
+       STD        NaN  1.255945
+red   MEAN -0.399363  0.483054
+"""
+\end{lstlisting}
+
+\emph{Расстыковка} (unstack) помещает самый внутренний уровень индекса строк в новый уровень индекса столбцов.
+
+\emph{Расплавление} -- это тип организации данных, который часто называют преобразованием объекта DataFrame из <<широкого>> формата в <<длинный>> формат.
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+data = pd.DataFrame({
+    "Name": ["Mike", "Mikal"],
+    "Height": [6.1, 6.0],
+    "Weight": [220, 185],
+})
+data
+"""
+     Name  Heigth  Weight
+0    Mike     6.1     220
+1  Mikael     6.0     185
+"""
+\end{lstlisting}
+
+Расплавляем кадр данных
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+pd.melt(
+    data,
+    id_vars=["Name"],
+    value_vars=["Height", "Weight"]
+)
+"""
+     Name variable  value
+0    Mike   Heigth    6.1
+1  Mikael   Heigth    6.0
+2    Mike   Weight  220.0
+3  Mikael   Weight  185.0
+"""
+\end{lstlisting}
+
+Получить данные по группе
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.groupby("color").get_group("blue")
+\end{lstlisting}
+
+Отфильтровать группы по условию. Если функция возвращает \texttt{True}, то группа включается в результат
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.groupby("color").filter(lambda group: group.col_name.count() > 1)
+\end{lstlisting}
 
 
 
@@ -1177,6 +1363,8 @@ spam = logged(func=spam, level=logging.CRITICAL, name="example", message=None)
 	\bibitem{beazley:python_cookbook-2019}{\emph{Бизли Д.} Python. Книга рецептов. -- М.: ДМК Пресс., 2019. -- 648 с.}
 	
 	\bibitem{ramalho:python-2022}{\emph{Рамальо Л.} Python -- к вершинам мастерства: Лаконичное и эффективное программирование. -- М.: МК Пресс, 2022. -- 898 с.}
+	
+	\bibitem{heydt:pandas-2019}{\emph{Хейдт М., Груздев А.} Изучаем pandas. -- М.: ДМК Пресс, 2019. -- 682 с.}
 \end{thebibliography}
 
 %\listoffigures\addcontentsline{toc}{section}{Список иллюстраций}
