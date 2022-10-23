@@ -1164,6 +1164,48 @@ spam = logged(func=spam, level=logging.CRITICAL, name="example", message=None)
 
 \section{Приемы работы с библиотекой Pandas}
 
+\subsection{Советы по оптимизации вычислений}
+
+В ситуации, когда необходимо итерирование, более быстрым способом итерирования строк будет использование метода \texttt{.iterrows()}. Метод \texttt{.iterrows()} оптимизирован для работы с кадрами данных, и хотя это наименее эффективный способ большинства страндартных функций, он дает значительное улучшение, по сравнению с базовым итерированием \cite[\strbook{328}]{heydt:pandas-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+haversine_series = []
+for index, row in df.iterrows():
+    haversine_series.append(haversine(...))
+df["distance"] = haversin_series
+\end{lstlisting}
+
+Более эффктивным способом является использование метода \texttt{.apply()}, который применяет функцию вдоль определеной оси (вдоль строк или вдоль столбцов) кадра данных. Хотя метод \texttt{.apply()} также по своей сути перебирает строки, он делает это намного эффективнее, чем метод \texttt{.iterrows()}, используя ряд внутренних оптимизаций, например, применяя итераторы, написанные на Cython \cite[\strbook{328}]{heydt:pandas-2019}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df["distance"] = df.apply(lambda row: haversine(..., ..., row["latitude"], row["longitude"]), axis=1)
+\end{lstlisting}
+
+Но гораздо эффективнее задействовать векторизацию и передать не скаляры, а столбцы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df["distance"] = haversine(..., ..., df["latitude"], df["longitude"])
+\end{lstlisting}
+
+Если скорость имеет наивысший приоритет, можно вместо серий использовать numpy-массивы. Как и pandas, numpy работает с массивами. однако она освобождена от дополнительных вычислительных затрат, связанных с операциями в pandas, такими как индексирование, проверка типов данных и т.д. В результате операции над массивами numpy могут выполняться значительно быстрее, чем операции над объектами \texttt{Series}.
+
+Массивы numpy можно использовать вместо объектов \texttt{Series}, когда дополнительная функциональность, предлагаемая объектами \texttt{Series}, не является критичной. Например, векторизованная реализация функции \texttt{haversine} фактически не использует индексы в сериях \texttt{langitude} и \texttt{latitude}, и поэтому отсутствие этих индексов не приведет к нарушению работы функции
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df["distance"] = haversine(..., ..., df["latitude"].values, df["longitude"].values)
+\end{lstlisting}
+
+
+\subsection{Рецепты}
+
 Посмотреть какие строки значений (а не индексы) кадра данных попали в ассоциированные группы
 \begin{lstlisting}[
 style = ironpython,
