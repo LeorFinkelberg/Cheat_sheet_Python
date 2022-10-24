@@ -1203,8 +1203,40 @@ numbers = none
 df["distance"] = haversine(..., ..., df["latitude"].values, df["longitude"].values)
 \end{lstlisting}
 
+Оптимизацию числовых столбцов можно выполнить с помощью \emph{понижающего преобразования}, используя функцию \texttt{pd.to\_numeric}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.select_dtypes(np.dtype("int64")).apply(
+    pd.to_numeric,  # функция, которая применяется к int-столбцам
+    downcase="unsigned"  # аргумент функции pd.to_numeric
+)
+\end{lstlisting}
+
+
 
 \subsection{Рецепты}
+
+Вывести точную информацию об использовании памяти
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+df.info(memory_usage="deep")
+"""
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 1000 entries, 0 to 999
+Data columns (total 3 columns):
+#   Column  Non-Null Count  Dtype
+---  ------  --------------  -----
+0   key1    1000 non-null   float64
+1   key2    1000 non-null   int64
+2   color   1000 non-null   object
+dtypes: float64(1), int64(1), object(1)
+memory usage: 75.3 KB
+"""
+\end{lstlisting}
 
 Посмотреть какие строки значений (а не индексы) кадра данных попали в ассоциированные группы
 \begin{lstlisting}[
@@ -1237,8 +1269,18 @@ style = ironpython,
 numbers = none
 ]
 df.groupby("color").apply(
-    lambda group: group.fillna(group["col_name"].mean())
+    lambda group: group.fillna(group.mean())
 )
+\end{lstlisting}
+
+Найти среднее и страндартное отклонение по группам для вещественных столбцов кадра данных
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.groupby("label")[
+    df.select_dtypes(np.dtype("float64")).columns
+].agg([np.mean, np.std]).stack()
 \end{lstlisting}
 
 При проведении разведочного анализа данных лучше всего сначала загрузить данные и исследовать их с помощью запросов/логического отбора. Затем создайте индекс, если ваши данные поддерживают его или если вам требуется повышенная производительность \cite[\strbook{115}]{heydt:pandas-2019}. Операции поиска с использованием индекса обычно выполняются быстрее. В силу лучшей производительности выполнение поиска по индексу (в тех случаях, когда это возможно) обычно является оптимальным решением. Недостаток использования индекса заключается в том, что потребуется время на его создание, кроме того, он занимает больше памяти.
