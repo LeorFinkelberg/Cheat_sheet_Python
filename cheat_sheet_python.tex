@@ -614,6 +614,15 @@ $ curl -H "Content-Type: application/json" -X POST --data "@file_name.json" "loc
 $ vim profile.log
 \end{lstlisting}
 
+Граф цепочки выполнения программы можно построить следующим образом
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ pip install gprof2dot
+$ python -m cProfile -o profile.pstat | dot -Tpng -o output.png
+\end{lstlisting}
+
 Потребление памяти приложением можно оценить с помощью библиотеки \texttt{memory\_profiler} \url{https://pypi.org/project/memory-profiler/}. После установки библиотеки будет доступна утилита командной строки \texttt{mprof}.
 
 Запустить приложение в режиме замера потребления памяти для основного (родительского) процесса и его дочерних процессов (если они существуют) можно следующим образом
