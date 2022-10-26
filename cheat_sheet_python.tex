@@ -614,6 +614,37 @@ $ curl -H "Content-Type: application/json" -X POST --data "@file_name.json" "loc
 $ vim profile.log
 \end{lstlisting}
 
+Потребление памяти приложением можно оценить с помощью библиотеки \texttt{memory\_profiler} \url{https://pypi.org/project/memory-profiler/}. После установки библиотеки будет доступна утилита командной строки \texttt{mprof}.
+
+Запустить приложение в режиме замера потребления памяти для основного (родительского) процесса и его дочерних процессов (если они существуют) можно следующим образом
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ mprof run --include-children --multiprocess script.py
+\end{lstlisting}
+
+После остановки приложения в рабочей директории будет создан dat-файл с результатами измерений потребления памяти. Построить график потребления можно так
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+# -s: угол наклона, по которому можно судить об утечке памяти
+#  -t: заголовок графика
+$ mprof plot -s -t "496.lp"
+\end{lstlisting}
+
+Перечень поддерживаемых флагов, связанных с конкретной подкомандой \texttt{mprof}, можно просмотреть так
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ mprof run --help
+...
+\end{lstlisting}
+
+
+
 \section{Итераторы и генераторы}
 
 В большинстве случаев для прохода по итериуемому объекту используется цикл \texttt{for}. Однако иногда задачи требуют более точного контроля лежащего в основе механизма итераций. 
