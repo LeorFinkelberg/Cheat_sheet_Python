@@ -652,6 +652,22 @@ $ mprof <subcommand> --help
 ...
 \end{lstlisting}
 
+Для измерения потребления памяти какой-то конкретной функции можно воспользоваться декоратором \texttt{@memory\_profiler.profile}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from memory_profiler import profile
+
+@profile
+def my_func():
+    a = [1] * (10 ** 6)
+    b = [2] * (2 * 10 ** 7)
+    del b
+    return a
+\end{lstlisting}
+
+Затем остается только запустить интерпретатор с флагом \verb|-m memory_profiler| и проанализировать ответ \texttt{memory\_profiler}.
 
 
 \section{Итераторы и генераторы}
