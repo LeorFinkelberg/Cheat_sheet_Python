@@ -620,7 +620,8 @@ style = bash,
 numbers = none
 ]
 $ pip install gprof2dot
-$ python -m cProfile -o profile.pstat | dot -Tpng -o output.png
+$ python -m cProfile -o profile.pstat app.py
+$ gprof2dot -f pstats profile.pstat | dot -Tpng -o output.png
 \end{lstlisting}
 
 Потребление памяти приложением можно оценить с помощью библиотеки \texttt{memory\_profiler} \url{https://pypi.org/project/memory-profiler/}. После установки библиотеки будет доступна утилита командной строки \texttt{mprof}.
