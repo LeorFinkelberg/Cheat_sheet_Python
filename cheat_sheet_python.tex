@@ -727,6 +727,18 @@ def read_wo_header(file_name: str):
 
 Возвращаемый итератор отбрасывает первые элементы в последовательности до тех пор, пока предоставленная функция возвращает \texttt{True}.
 
+Если нужно просто пропустить первые несколько строк файла (не по условию), то будет полезна функция \texttt{itertools.islice}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+with open(file_name, mode="r", encoding="utf-8") as f:
+    for line in islice(f, 7, None):  # пропустить первые 7 строк файла
+        if line.startswith("# rows".lower()):
+            break
+       ...
+\end{lstlisting}
+
 \section{Захват переменных в анонимных функциях}
 
 Рассмотрим поведение следующей программы:
