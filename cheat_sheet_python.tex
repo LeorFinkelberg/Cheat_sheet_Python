@@ -1254,6 +1254,74 @@ spam = logged(func=spam, level=logging.CRITICAL, name="example", message=None)
 {\color{blue}GIL влияет только на программы, сильно нагружающие CPU} (то есть те, в которых вычисления доминируют). Если ваша программа в основном занимается вводом-выводом, что типично для сетевых коммуникаций, потоки часто являются разумным выбором, потому что они проводят большую часть времени в ожидании.
 
 
+\section{Приемы работы с библиотекой SPyQL}
+
+SPyQL \url{https://github.com/dcmoura/spyql}  -- это утилита командной строки, позволяющая писать SQL-подобные запросы к csv-, json-файлам, с использованием выразительных средств Python.
+
+Прочитать csv-файл и вывести первые две записи в json-формате
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ spyql "SELECT * FROM csv LIMIT 2 TO json(indent=2)" < features_a78cbead_bin.csv
+{
+	"var": "alpha_tu_0_1_12_1",
+	"scenario": "a78cbead_bin",
+	"varBinaryOriginal": 1,
+	"varTypeTrans": 0,
+	"varStatus": 1,
+	"varMayRoundUp": 0,
+	"varMayRoundDown": 0,
+	"varMayIsActive": 1,
+	"varIsDeletable": 0,
+	"varIsRemovable": 0,
+	"varObj": 0.0,
+	"varPseudoSol": -0.0,
+	"NLocksDown": 1,
+	"NLocksUp": 1,
+	"IsTransformed": 1,
+	"multaggrConstant": 0,
+	"varAggrScalar": 0,
+	"varAggrConstant": 0,
+	"varMultaggrNVars": 0,
+	"varBestBound": -0.0,
+	"varWorstBound": 1.0,
+	"varBranchFactor": 1,
+	"varBranchPriority": 0,
+	"varBranchDirection": 3,
+	"varNImpls0": 0,
+	"varNImpls1": 0,
+	"varGetNCliques0": 0,
+	"varGetNCliques1": 0,
+	"varConflictScore": 1e-12,
+	"varAvgInferenceScore": 87.0136,
+	"relaxSolVal": 0.458516,
+	"varImplRedcost0": 0.0,
+	"varImplRedcost1": 0.0,
+	"varPseudocostScore": 0.248279,
+	"equalToLb": 0,
+	"equalToUb": 0,
+	"target": 1
+}
+...
+\end{lstlisting}
+
+Прочитать csv-файл, сгруппировать по полю \texttt{varStatus}, а затем из результата выбрать строки, в которых \texttt{varStatus > 2}
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ cat features_a78cbead_bin.csv \
+    | spyql "SELECT varStatus AS status, count_agg(*) AS count FROM csv GROUP BY 1 TO spy" \
+    | spyql "SELECT * FROM spy WHERE status > 2 ORDER BY 2 DESC TO pretty"
+  
+  status    count
+ --------  -------
+     3     8361
+     4      552
+\end{lstlisting}
+
+
 \section{Приемы работы с библиотекой Pandas}
 
 \subsection{Советы по оптимизации вычислений}
