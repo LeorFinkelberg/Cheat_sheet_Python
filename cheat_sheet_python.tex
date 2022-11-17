@@ -1253,6 +1253,44 @@ spam = logged(func=spam, level=logging.CRITICAL, name="example", message=None)
 
 {\color{blue}GIL влияет только на программы, сильно нагружающие CPU} (то есть те, в которых вычисления доминируют). Если ваша программа в основном занимается вводом-выводом, что типично для сетевых коммуникаций, потоки часто являются разумным выбором, потому что они проводят большую часть времени в ожидании.
 
+\section{Проверка сущестования путей в \texttt{dataclass}}
+
+Для того чтобы при чтении конфигурационного файла проекта, выполнялась проверка существования путей, следует задекорировать класс-схему следующим образом \url{https://harrisonmorgan.dev/2020/04/27/advanced-python-data-classes-custom-tools/}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def validated_dataclass(cls):
+	"""
+	Class decorator for validating fields
+	"""
+	cls = dataclass(cls)
+
+	def _set_attribute(self, attr, value):
+		for field in fields(self):
+			if field.name == attr and "validator" in field.metadata:
+				value = field.metadata["validator"](value)
+				break
+
+		object.__setattr__(self, attr, value)
+		cls.__setattr__ = _set_attribute
+
+		return cls
+
+
+@validated_dataclass
+class Paths:
+	path_to_test_lp_file: str = field(metadata={"validator": check_existence_path})
+	path_to_set_file: str = field(metadata={"validator": check_existence_path})
+	path_to_output_dir: str = field(metadata={"validator": check_existence_path})
+
+def check_existence_path(path: str):
+	path = pathlib2.Path(path)
+	if not path.exists():
+		raise FileNotFoundError(f"Path {path} not found ...")
+	
+	return path
+\end{lstlisting}
 
 \section{Приемы работы с библиотекой SPyQL}
 
