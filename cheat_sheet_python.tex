@@ -1081,6 +1081,40 @@ def bad_make(*, obj, action: str):
     ...
 \end{lstlisting}
 
+\section{Класс загрузчик данных}
+
+Иногда бывает удобно использовать свой загрузчик. Например, когда нужно работать с большими npz-файлами временных рядов
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import pathlib2
+import typing as t
+
+class DataLoader:
+    def __init__(self, data_dir):
+        self.files = list(pathlib2.Path(data_dir).glob("*.npz"))
+        
+    def __getitem__(self, key):
+        return self.read(self.files[key])
+        
+    def __iter__(self):
+        yield from map(lambda file: self.read(file), self.files)
+        
+    def __len__():
+        return len(self.files)
+        
+    def read(self, filepath):
+        loader = np.load(filepath, allow_pickle=True)
+        
+        X = loader["X"]
+        index = loader["index"]
+        columns = loader["columns"]
+        y = loader["y"]
+        
+data = DataLoader("./data")
+\end{lstlisting}
+
 \section{Параметрические декораторы}
 
 Требуется создать функцию-декторатор, которая принимала бы аргументы
