@@ -1696,6 +1696,20 @@ numbers = none
 df.groupby("color").filter(lambda group: group.col_name.count() > 1)
 \end{lstlisting}
 
+Чтобы изменить, например, толщину линии для какого-то заданного столбца кадра данных нужно получить доступ к перечню линий \verb|ax.get_lines()|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+fig, ax = plt.subplots(figsize=(15, 5))
+
+df.plot(ax=ax, marker="o", style=["b--", "k-", "r-"])
+
+for line in ax.get_lines():
+    if line.get_label() == "col1":
+        line.set_linewidth(3.5)
+\end{lstlisting}
+
 
 
 % Источники в "Газовой промышленности" нумеруются по мере упоминания 
