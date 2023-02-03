@@ -90,6 +90,137 @@ def foo():
 
 Когда функция используется как вложенная, в замыкание включается все ее окружение, необходимое для работы внутренней функции.
 
+\section{Типизация}
+
+От типов модуля \texttt{typing} можно наследоваться
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+import typing as t
+from collection import namedtuple
+
+# Наследуемся от именного кортежа
+class Coordinates(t.NamedTuple):
+    latit: float
+    long: float
+    
+# Или так
+# Но тип поля теперь не указать
+# Coordinates = namedtuple("Coordinates", ["latit", "long"])
+
+# Доступ к полям через точечную нотацию
+coord = Coordinates(latit=0.45, long=1.45)
+coord.latit  # 0.45
+coord.long  # 1.45
+\end{lstlisting}
+
+Функционально тоже что и дата-класс
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from dataclasses import dataclass
+
+@dataclass(fronzen=False)
+class Coordinates:
+    latit: float
+    long: float
+\end{lstlisting}
+
+Именованные кортежы от дата-классов отличаются тем, что именованные кортежи относятся к объектам неизменяемого типа данных. Дата-классы вообще говоря тоже можно сделать неизменяемыми после создания с помощью параметра \verb|frozen=True|.
+
+Именованные кортежи эффективнее с точки зрения хранения. С помощью библиотеки \verb|pympler| \url{https://github.com/pympler/pympler}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import typing as t
+from pympler import asizeof
+
+class Coordinates(t.NamedTuple):
+    latit: float
+    long: float
+    
+print(asizeof.asized(coord).size)  # 104 Bytes
+\end{lstlisting}
+
+Иногда бывает полезно воспользоваться \emph{типизированным словарем} \verb|TypedDict|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+import typing as t
+
+# Доступ к полям будет как у словаря
+class Coordinates(t.TypedDict):
+    latit: float
+    long: float
+    
+coord = Coordinates(latit=0.45, long=0.15)
+coord["latit"]  # 0.45
+coord["long"]  # 0.15
+\end{lstlisting}
+
+Еще бывает удобно воспользоваться \emph{перечислением} \verb|Enum|. Модуль \verb|enum| это стандартная часть библиотеки Python, но если по какой-то причине интерпретатор не может его найти, то модуль можно установить так \verb|pip insatll enum|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from enum import Enum
+
+# Перечисление
+class FileState(Enum):
+    OPENED = "opened"
+    CLOSE = "close"
+    
+FileState.OPENED.value  # opened
+\end{lstlisting}
+
+В принципе поведение перечисления можно сымитировать с помощью именованного кортежа
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+import typing as t
+
+class FileState(t.NamedTuple):
+    OPENED = "opened"
+    CLOSE = "close"
+    
+FileState.OPENED  # "opened"
+\end{lstlisting}
+
+Для неименованных кортежей можно создавать псевдонимы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# Кортеж с произвольным количеством целых чисел
+int_tuple = t.Tuple[int, ...]
+
+def f(*args: int_tuple) -> int:
+    return sum(args)
+    
+print(f(10, 20, 30))  # 60
+
+two_ints = t.Tuple[int, int]
+# etc.
+\end{lstlisting}
+
+Generic (обобщенные типы)
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import typing as t
+T = t.TypeVar("T")  # обобщенный тип
+
+def first(iterable: t.Iterable[T]) -> t.Optional[T]:
+    for item in iterable:
+        return item
+\end{lstlisting}
+
 
 \section{Модули, пакеты и дистрибутивы}
 
