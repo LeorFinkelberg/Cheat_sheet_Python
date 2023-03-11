@@ -1829,7 +1829,7 @@ numbers = none
 df.groupby("color").filter(lambda group: group.col_name.count() > 1)
 \end{lstlisting}
 
-\subsubsection{Изменение настроек отдельной линии в кадре данных}
+\subsubsection{Изменение настроек отдельной линии графика на базе кадра данных}
 Чтобы изменить, например, толщину линии для какого-то заданного столбца кадра данных нужно получить доступ к перечню линий \verb|ax.get_lines()|
 \begin{lstlisting}[
 style = ironpython,
@@ -1846,6 +1846,21 @@ for line in ax.get_lines():
         line.set_marker("x")
 \end{lstlisting}
 
+\subsubsection{Использование регулярных выражений и обращений по имени группы при обработке строк}
+
+Привести столбец строкового типа к числовому типу с предварительной подготовкой строки по регулярному выражению можно так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+pd.to_numeric(
+    logs.loc[:, "time"].replace( # НЕ .str.replace!
+        to_replace=r"^.*?(\d+).*?$",
+        value=r"\1",  #  обращение к первой группе
+        regex=True,
+    )
+)
+\end{lstlisting}
 
 
 % Источники в "Газовой промышленности" нумеруются по мере упоминания 
