@@ -63,7 +63,40 @@ numbers = none
 style = ironpython,
 numbers = none
 ]
-def f(z: -B, g: (+B, +A) -> -B) -> +B: pass
+from collection.abc import Callable
+
+def give_task_for_programmer(
+    task: Callable[[Programmer], None],  # контравариантная позиция -
+	programmer: Programmer,              # контравариантная позиция -
+) -> None:
+    task(programmer)
+
+def task_for_programmer(programmer: Programmer):
+    pass
+
+def task_for_employee(employee: Employee):
+    pass
+
+def task_for_frontender(frontender: Frontender):
+    pass
+
+# Все нормально! Передаем родительский тип типа Programmer
+give_task_for_programmer(
+	task_for_programmer,  # ожидается Callable[[Programmer], None], передается Callable[[Programmer], None]
+	programmer
+)
+
+# Все нормально! Передаем родительский тип типа Programmer
+give_task_for_programmer(
+    task_for_employee,  # ожидается Callable[[Programmer], None], передается Callable[[Employee], None]
+	programmer
+)
+
+# Ошибка!!! Передаем дочерний тип типа Programmer
+give_task_for_programmer(
+    task_for_frontender,  # ожидается Callable[[Programmer], None], передается Callable[[Frontender], None] 
+	programmer
+)
 \end{lstlisting}
 
 \verb|collection.abc.Sequence| -- это неизменяемая структура, поэтому она ковариантна, а списки -- изменяемые структуры, поэтому они инвариантны.
