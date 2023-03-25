@@ -1679,34 +1679,63 @@ memory usage: 75.3 KB
 style = ironpython,
 numbers = none
 ]
-df.groupby("color").apply(lambda group: group["col_name"])
-"""
-   color  col_name
-0   blue  73.0
-1  green  52.0
-2  green   NaN
-3  green  77.0
-4   blue   NaN
-5  green  86.0
-6    red  73.0
-7    red   NaN
-8  green  77.0
-9    red  81.0
-"""
-
-# вывести индексы строк, по соответсвующим группам можно с помощью атрибута groups
-df.groupby("color").groups
-# {'blue': [0, 4], 'green': [1, 2, 3, 5, 8], 'red': [6, 7, 9]}
+df.groupby("color").groups.keys()
 \end{lstlisting}
 
-Заполнить пропущенные значения средним на сгруппированном по некоторому полю кадре данных
+Заполнить пропущенные значения групповым средним по столбцу. Метод \verb|apply| в случае сгруппированных объектов применяет переданную функцию (в данном случае анонимную) к каждой группе, а внутри группы операции применяются вдоль указанных осей
 \begin{lstlisting}[
 style = ironpython,
 numbers = none
 ]
-df.groupby("color").apply(
+# Нужно отобрать поля, к которым будет применяться функция
+df["year"] = df.groupby("color")["year"].apply(  # .loc[:, "year"] НЕ РАБОТАЕТ!
     lambda group: group.fillna(group.mean())
 )
+\end{lstlisting}
+
+Для того чтобы метод \verb|apply| корректно работал на объекте групп нужно указать с какими полями мы будем работать
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# Указываем поля "year" и "mark"
+df.groupby("model_car_id")[["year", "mark"]].appply(lambda gr: gr.fillna(gr.mean()))
+# или
+df.groupby("model_car_id")[["year", "mark"]].transform(lambda gr: gr.fillna(gr.mean()))
+\end{lstlisting}
+
+Метод \texttt{transform} в самом простом случае применяет указанную функцию к каждому элементу вдоль указанного направления и возвращает результат преобразования, а в случае группировки для каждого элемента группы возвращается групповой аггрегат или результатом преобразования (причем для каждого столбца вычисляется свой аггрегат)
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# каждый элемент групп будет заменен количеством элементов в группе
+df.groupby("color")["elems"].transform(len)
+\end{lstlisting}
+
+Другими словами, метод \verb|transform| на сгруппированном объекте для каждого элемента группы возвращает групповой аггрегат, а метод \verb*|apply| просто применяет указанную функцию к группе и возвращает результат для каждой группы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+$ df.groupby("model_car_id")["year"].transfrom(np.count_nonzero)
+0    5  # элемент 1970.0 был заменен мощностью его группы
+1    4
+2    5
+3    4
+4    4
+5    4
+6    1
+7    5
+8    5
+9    5
+Name: year, dtype: int64
+$ df.groupby("model_car_id")["year"].apply(np.count_nonzero)
+model_car_id
+id_1    4
+id_2    1
+id_3    5
+Name: year, dtype: int64
 \end{lstlisting}
 
 Найти среднее и страндартное отклонение по группам для вещественных столбцов кадра данных
