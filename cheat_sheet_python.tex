@@ -55,6 +55,79 @@ numbers = none
 префикс? (P) + действие (A) + высокоуровневый контекст (HC) + низкоуровневый контекст (LC)
 \end{lstlisting}
 
+\section{Приемы работы с pytest}
+
+\subsection{Особенности импорта}
+
+Пусковой сценарий проекта обычно располагается в директории \verb|./src|. В этом случае сканирование окружения на предмет поиска пользовательских пакетов и модулей начинается с той директории, в которой \emph{лежит} этот пусковой сценарий, то есть с директории \verb|./src|
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+project_root/
+    src/
+        common/  # пакет
+            __init__.py
+            logger.py
+            exceptoins.py
+        units/  # пакет
+            __init__.py
+            fix_vars.py
+            base_unit.py
+            solver.py
+        strategy_manager.py
+        run.py
+\end{lstlisting}
+
+Тогда импорт в самом сценарии может выглядеть так
+\begin{lstlisting}[
+title = {\sffamily run.py},
+style = ironpython,
+numbers = none
+]
+# путь отсчитывается от той директории, в которой лежит run.py
+from common.logger import make_logger
+from strategy_manager import StrategyManager
+...
+\end{lstlisting}
+
+В модулях пути тоже отсчитываются от той директории, в которой \emph{лежит} пусковой сценарий
+\begin{lstlisting}[
+title = {\sffamily solver.py},
+style = ironpython,
+numbers = none
+]
+from common.logger import make_logger
+from units.base_unit import Unit
+...
+\end{lstlisting}
+
+В тестах можно указывать пути от той же директории \verb|./src|, то есть
+\begin{lstlisting}[
+title = {\sffamily test\_solver.py},
+style = ironpython,
+numbers = none
+]
+import pytest
+# путь отсчитывается от директории ./src
+from common.exceptions import HiGHS
+from units.solver import Solver
+
+@pytest.mark.unit
+def test_solver_unit_highs_with_unsupported_solver_name():
+    ...
+\end{lstlisting}
+
+Но запускать тесты нужно будет так
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+# требуется включить директорию ./src в список путей поиска
+$ PYTHONPATH=./src pytest -v
+$ PYTHONPATH=./src pytest -v --cov=. --cov-report=html
+\end{lstlisting}
+
 \section{Инвариантность, ковариантность и контрвариантность}
 
 Ковариантность позволяет использовать переданный тип или его дочерние типы, инвариантность -- тот только тип, который передали, а контрвариативность -- более общие типы.
