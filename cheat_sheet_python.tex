@@ -55,6 +55,188 @@ numbers = none
 префикс? (P) + действие (A) + высокоуровневый контекст (HC) + низкоуровневый контекст (LC)
 \end{lstlisting}
 
+\section{Приемы работы с пакетом Nox}
+
+Nox \url{https://nox.thea.codes/en/stable/index.html} -- библиотека и утилита командной строки для автоматизации различных процедур в мульти-средах Python -- от простого запуска тестов с помощью, например, \verb|pytest|, линтеров или сборщиков Docker-образов и до запуска цепочек выполнения произвольной сложности .
+
+Для запуска утилиты \verb|nox| требуется подговтоить файл \verb|noxfile.py| и положить его в корень проекта
+\begin{lstlisting}[
+title = {\sffamily noxfile.py},
+style = ironpython,
+numbers = none	
+]
+import nox
+
+
+nox.needs_version = ">=2019.5.30"
+
+@nox.session(python=False)
+def docker(session):
+	session.run(
+		"sudo", "docker", "build",
+		"--build-arg", "USER_ID=1000",
+		"--build-arg", "GROUP_ID=1000",
+		"--build-arg", "STRATEGY_NAME=fix_bins_ints_in_relax_sol",
+		"--build-arg", "PATH_TO_STRATEGIES_DIR=./data/strategies",
+		"-t", "tthec-fix_bins_ints_in_relax_sol",
+		"."
+	)
+
+@nox.session(
+    python=["3.8", "3.9", "3.10"],  # тесты выполняются для 3-х версий Python
+    venv_backend="conda",
+    reuse_venv=True,
+)
+def test(session):
+    # conda ставит только PySCIPOpt==4.3.0 с канала conda-forge
+    session.conda_install("pyscipopt==4.3.0", channel="conda-forge")
+    # --no-deps, чтобы не сломать окружение conda
+    session.install("--no-deps", "-r", "requirements.txt")
+    session.run(
+        "pytest",
+        "-v",
+        "-k", "solver",  #запускает только те тесты, в имени которых есть подстрока 'solver'
+        env = {  # здесь описываются переменные окружения
+            "PYTHONPATH": "./src",  # как если бы запускали $ PYTHONPATH=./src pytest
+        }
+    )
+\end{lstlisting}
+
+Теперь для запуска сессии сборки образа нужно просто запустить утилиту с указанием имени сессии
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ nox -s docker
+\end{lstlisting}
+
+То есть в файле \verb|noxfile.py| можно описывать любые сессии, которые автоматизируют различные задачи (запуск тестов, сборку Docker-образов и пр.) и доступ к этим сессиям будет, так сказать, с одной точки.
+
+Можно запускать цепочки
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import nox
+import pathlib2
+
+# NOX OPTIONS
+nox.needs_version = ">=2022"
+nox.options.default_venv_backend = "conda"
+
+# PROJECT PARAMS
+STRATEGY_NAME = "fix_bins_ints_in_relax_sol_with_perturbation"
+PROBLEM_FILE_NAME = "model_MNPZ_march_no_plecho_no_CDO_only_BRN.mps"
+
+PATH_TO_DATA_DIR = Path().joinpath("data/").absolute()
+PATH_TO_PROBLEMS_DIR = PATH_TO_DATA_DIR.joinpath("problems/")
+PATH_TO_MAKE_STRATEGY_FILE = Path("./src/strategy_templates/make_strategy_file.py")
+PATH_TO_SETTINGS_DIR = PATH_TO_DATA_DIR.joinpath("settings/")
+PATH_TO_RELAX_SET_FILE = PATH_TO_SETTINGS_DIR.joinpath("scip_relax.set")
+PATH_TO_MILP_SET_FILE = PATH_TO_SETTINGS_DIR.joinpath("scip_milp.set")
+PATH_TO_STRATEGIES_DIR_HOST = PATH_TO_DATA_DIR.joinpath("strategies/")
+PATH_TO_STRATEGIES_DIR_CONTAINER = "./data/strategies"
+
+DOCKER_MEMORY = 8000  # Mb
+DOCKER_MEMORY_SWAP = 8000  # Mb
+
+DEFAULT_INTERPRETER = "3.8"
+TARGET_INTERPRETERS = ("3.8", "3.9", "3.10")
+
+# ENVS
+env = {"PYTHONPATH": "./src"}
+
+@nox.session(python=False)
+def run_app_with_docker(session):
+	session.run(
+		"sudo", "docker", "build",
+		"--build-arg", "USER_ID=1000",
+		"--build-arg", "GROUP_ID=1000",
+		"--build-arg", "STRATEGY_NAME=fix_bins_ints_in_relax_sol",
+		"--build-arg", "PATH_TO_STRATEGIES_DIR=./data/strategies",
+		"-t", "tthec-fix_bins_ints_in_relax_sol",
+		"."  # контекст
+	)
+	# вызов следующего вспомогательного сценария
+	session.notify("make_strategy_file")
+	
+@nox.session(python=DEFAULT_INTERPRETER)
+def make_strategy_file(session):
+    session.install("pathlib2>=2.3.7")
+    session.run(
+	    "python", PATH_TO_MAKE_STRATEGY_FILE,
+	    "--strategy-name", STRATEGY_NAME,
+	    "--path-to-relax-set-file", PATH_TO_RELAX_SET_FILE,
+	    "--path-to-milp-set-file", PATH_TO_MILP_SET_FILE,
+	    "--path-to-test-problem-file", PATH_TO_PROBLEMS_DIR.joinpath(PROBLEM_FILE_NAME),
+	    "--path-to-strategies-dir", PATH_TO_STRATEGIES_DIR_HOST,
+	    env=env,
+    )
+    # вызов следующего вспомогательного сценария
+    session.notify("docker_run")
+    
+@nox.session(python=False)
+def docker_run(session):
+	session.run(
+		"sudo", "docker", "run",
+		"--rm",
+		"-v", f"{PATH_TO_DATA_DIR}:/data",
+		"-m", f"{DOCKER_MEMORY}m",
+		"--memory-swap", f"{DOCKER_MEMORY_SWAP}m",
+		f"tthec-{STRATEGY_NAME}"
+	)
+...
+\end{lstlisting}
+
+Запуск цепочки
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ nox -s run_app_with_docker
+\end{lstlisting}
+
+\subsection{Nox как утилита командной строки}
+
+\url{https://nox.thea.codes/en/stable/usage.html}
+
+Вывести список сессий
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ nox -l
+* test-3.8
+* test-3.9
+* test-3.10
+\end{lstlisting}
+
+Запустить только тестирование для Python 3.10
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ nox --session test-3.10  # или с коротким флагом '-s'
+\end{lstlisting}
+
+После запуска сессий по умолчанию в текущей директории создается скрытая директория \verb|.nox|, в которую записывается сводка по запускам. Чтобы создать эту сводку в указанном пользователем месте, нужно использовать флаг \verb|--envdir|
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ nox --envdir /tmp/envs
+\end{lstlisting}
+
+\section{Приемы работы с pip}
+
+С одной стороны в виртуальное окружение conda можно устанавливать пакеты с помощью менеджера \verb|pip|, но все-таки лучше с \verb|pip| использовать флаг \verb|--no-deps|. Это поможет не сломать окружение \verb|conda|. В противном случае пакеты устанавливаемые с помощью \verb|pip| могут получить несовместимые версии с пакетами уже установленными в окружении conda \url{https://nox.thea.codes/en/stable/tutorial.html}
+\begin{lstlisting}[
+style = bash,
+numbers = none	
+]
+$ pip install --no-deps -r req.txt
+\end{lstlisting}
+
 \section{Приемы работы с pytest}
 
 \subsection{Особенности импорта}
