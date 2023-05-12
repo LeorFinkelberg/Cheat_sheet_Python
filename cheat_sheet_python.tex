@@ -57,7 +57,11 @@ numbers = none
 
 \section{Приемы работы с пакетом Nox}
 
-Nox \url{https://nox.thea.codes/en/stable/index.html} -- библиотека и утилита командной строки для автоматизации различных процедур в мульти-средах Python -- от простого запуска тестов с помощью, например, \verb|pytest|, линтеров или сборщиков Docker-образов и до запуска цепочек выполнения произвольной сложности .
+\subsection{Общий шаблон}
+
+Nox \url{https://nox.thea.codes/en/stable/index.html} -- библиотека и утилита командной строки для автоматизации различных процедур в мульти-средах Python -- от простого запуска тестов с помощью, например, \verb|pytest|, линтеров или сборщиков Docker-образов и до запуска цепочек выполнения произвольной сложности.
+
+Если говорить о Python-сцериях, то в файле \verb|noxfile.py| описывается только процедура запуска сценария (вызов сценрия из оболочки), а не сам сценарий.
 
 Для запуска утилиты \verb|nox| требуется подговтоить файл \verb|noxfile.py| и положить его в корень проекта
 \begin{lstlisting}[
@@ -69,6 +73,7 @@ import nox
 
 
 nox.needs_version = ">=2019.5.30"
+nox.options.default_venv_backend = "conda"
 
 @nox.session(python=False)
 def docker(session):
@@ -196,6 +201,41 @@ numbers = none
 $ nox -s run_app_with_docker
 \end{lstlisting}
 
+Чтобы захватить вывод команды оболочки, нужно у метода \verb|run| выставить \verb|silent=True|
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+@nox.session(python=False)
+def f(session):
+	USER_ID = session.run("bash", "-c", "echo $(id -u)", silent=True)
+	GROUP_ID = session.run("bash", "-c", "echo $(id -g)", silent=True)
+	...
+\end{lstlisting}
+
+\subsection{Запуск тестов в мультисредах Python}
+
+Для того чтобы запустить тесты сразу для нескольких версий интерпретатора достаточно просто передать список нужных версий декоратору \verb|@nox.session(python=["3.8", "3.9", ...])|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+@nox.session(
+    python=["3.8", "3.9"],
+    venv_backend="conda",
+    reuse_venv=False,
+)
+def test(session):
+    session.conda_install("pyscipopt==4.3.0", channel="conda-forge")
+    session.install("--no-deps", "-r", "requirements.txt")
+    
+    session.run(
+        "pytest",
+        "-v",
+        env={"PYTHONPATH": "./src"}
+    )
+\end{lstlisting}
+
 \subsection{Nox как утилита командной строки}
 
 \url{https://nox.thea.codes/en/stable/usage.html}
@@ -226,6 +266,55 @@ numbers = none
 ]
 $ nox --envdir /tmp/envs
 \end{lstlisting}
+
+Утилите \verb|nox| можно передать позиционные аргументы
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+...
+@nox.session
+def test(session):
+    if session.posargs:
+        test_files = session.posargs
+    else:
+        test_files = ["test_a.py", "test_b.py"]
+        
+   session.run("pytest", *test_files)
+   
+$ nox -- test_c.py
+\end{lstlisting}
+
+Еще один важный момент заключается в том, что если требуется управлять цепочкой выполнения по условию, то можно пробросить значения аргументов командной строки через аргумент \verb|posargs| функции \verb|notify|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+@nox.session(python=DEFAULT_INTERPRETER)
+def fake1(session):
+    args: t.List[str] = session.posargs
+    
+    if args and ("docker" in args):
+        use_docker = True
+    else:
+        use_docker = False
+        
+    session.notify("fake2", posargs=[use_docker])  # пробрасываем значение аргумента
+    
+@nox.session(python=DEFAULT_INTERPRETER)
+def fake2(session):
+    print(session.posargs)
+\end{lstlisting}
+
+Теперь можно вызвать сессию так
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ nox -s fake1 -- docker
+\end{lstlisting}
+
+
 
 \section{Приемы работы с pip}
 
