@@ -1722,6 +1722,27 @@ def spam():
 
 Можно считать, что после объявления функции \texttt{add} вместо выражения \verb|@logged(logging.DEBUG)| стоит \verb|@decorate|, но при этом еще доступна переменная \verb|level| со значением \verb|@logging.DEBUG|, а также переменные \texttt{name} и \texttt{message} со значением \texttt{None}. Аргумент функции \texttt{decorate} получает ссылку на декорируемую функцию \texttt{add}. Затем локальные переменные \texttt{logname}, \texttt{log} и \texttt{logmsg} получают значения, после чего возвращается ссылка на вложенную функцию \texttt{wrapper}. Таким образом, при вызове функции \texttt{add} будет вызываться функция \texttt{wrapper}.
 
+\section{Пользовательские исключения}
+
+Можно не просто наследовать пользовательский класс исключения от класса \verb|Exception|, задавать сообщения по умолчанию и пр.
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class PathToProblemError(Exception):
+    """
+    Incorrect path to problem
+    """
+    
+    def __init__(
+        self,
+        message="Error! Incorrect path to problem: {}",
+        *,
+        incorrect_path_to_problem="",
+    ):
+        super().__init__(message.format(incorrect_path_to_problem))
+\end{lstlisting}
+
 \section{Определение декоратора, принимающего необязательный аргумент}
 
 Вы хотели бы написать один декоратор, который можно было бы использовать и без аргументов -- \verb|@decorator|, и с необязательными аргументами \verb|@decorator(x, y, z)| \cite[\strbook{339}]{beazley:python_cookbook-2019}.
