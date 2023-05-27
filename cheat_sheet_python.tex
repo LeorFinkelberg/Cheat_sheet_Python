@@ -400,6 +400,147 @@ $ PYTHONPATH=./src pytest -v
 $ PYTHONPATH=./src pytest -v --cov=. --cov-report=html
 \end{lstlisting}
 
+\section{Замечание о пользовательских пакетах}
+
+При написании пользовательских пакетах файл зависимостей должен быть как можно менее ограничительным
+\begin{lstlisting}[
+title = {\sffamily requirements.txt},
+style = ironpython,
+numbers = none
+]
+# Data
+numpy >= 1.16.0, !=1.24.0
+pandas >= 1.1.0, < 1.3.0; python_version == '3.7'
+pandas >= 1.3.0; python_version >= '3.8'
+scipy >= 1.9.3; python_version >= '3.8'
+
+# Parallelization
+joblib >= 1.2.0; python_version >= '3.8'
+
+# Models and frameworks
+scikit-learn >= 1.0.0; python_version >= '3.8'
+pyod >= 1.0.7; python_version >= '3.8'
+
+# Optimization and solvers
+# pyomo >= 6.4.2; python_version >= '3.8'
+# PySCIPOpt installed using environment.yaml file of conda package manager
+pyscipopt >= 4.3.0; python_version == '3.8'
+
+# Plotting
+matplotlib >= 3.3.1; python_version >= '3.8'
+
+# Misc
+pathlib2 >= 2.3.7
+python-dotenv >= 0.21.0
+pyyaml >= 6.0
+tqdm
+psutil >= 5.7.3
+
+# Tests
+pytest >= 6.2.0
+\end{lstlisting}
+
+Файл \verb|setup.py| может выглядеть так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+rom pathlib import Path
+from typing import List
+
+import setuptools
+
+# The directory containing this file
+HERE = Path(__file__).parent.resolve()
+
+# The text of the README file
+NAME = "zyopt"
+VERSION = "0.0.1"
+AUTHOR = "Digital Industrial Platform"
+SHORT_DESCRIPTION = (
+	"Add-in for the SCIP solver with support for heuristics, "
+	"classical machine learning and deep learning methods"
+)
+README = Path(HERE, "README.md").read_text(encoding="utf-8")
+URL = ""
+REQUIRES_PYTHON = ">=3.8"
+LICENSE = "BSD 3-Clause"
+
+
+def _readlines(*names: str, **kwargs) -> List[str]:
+	encoding = kwargs.get("encoding", "utf-8")
+	lines = Path(__file__).parent.joinpath(*names).read_text(encoding=encoding).splitlines()
+	return list(map(str.strip, lines))
+
+
+def _extract_requirements(file_name: str):
+	return [line for line in _readlines(file_name) if line and not line.startswith("#")]
+
+
+def _get_requirements(req_name: str):
+	requirements = _extract_requirements(req_name)
+	return requirements
+
+
+setuptools.setup(
+	name=NAME,
+	version=VERSION,
+	author=AUTHOR,
+	author_email="itmo.nss.team@gmail.com",
+	description=SHORT_DESCRIPTION,
+	long_description=README,
+	long_description_content_type="text/x-rst",
+	url=URL,
+	python_requires=REQUIRES_PYTHON,
+	license=LICENSE,
+	packages=setuptools.find_packages(exclude=["test*"]),
+	include_package_data=True,
+	install_requires=_get_requirements("requirements.txt"),
+	classifiers=[
+		"License :: OSI Approved :: BSD License",
+		"Programming Language :: Python :: 3.8",
+		"Programming Language :: Python :: 3.9",
+		"Programming Language :: Python :: 3.10",
+	],
+)
+\end{lstlisting}
+
+Сборка выполняется в корне проекта
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ python setup.py sdist bdist_wheel
+\end{lstlisting}
+
+Если все прошло успешно, то теперь можно опубликовать пакет на TestPyPI с помощью утилиты \verb|twine|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+$ twine upload -r testpypi dist/* --verbose
+\end{lstlisting}
+
+Посмотреть, что получилось можно на \verb|https://test.pypi.org/project/my_prjoect_name/|. Для проверки работоспособности пакета нужно его поставить на локальную машину
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ pip install --index-url https://test.pypi.org/simple/ \
+    --extra-index-url https://pypi.org/simple my_package_name
+\end{lstlisting}
+
+ВАЖНО! Флаг \verb|--extra-index-url| нужен, чтобы \verb|pip| мог при установке извлекать зависимости с PyPI.
+
+И, наконец, если все устраивает, то можно опубликовать пакет на PyPI
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ twine upload dist/*
+\end{lstlisting}
+
+
 \section{Инвариантность, ковариантность и контрвариантность}
 
 Ковариантность позволяет использовать переданный тип или его дочерние типы, инвариантность -- тот только тип, который передали, а контрвариативность -- более общие типы.
@@ -412,7 +553,7 @@ from collection.abc import Callable
 
 def give_task_for_programmer(
     task: Callable[[Programmer], None],  # контравариантная позиция -
-	programmer: Programmer,              # контравариантная позиция -
+    programmer: Programmer,              # контравариантная позиция -
 ) -> None:
     task(programmer)
 
