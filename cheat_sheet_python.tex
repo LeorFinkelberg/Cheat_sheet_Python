@@ -1996,6 +1996,111 @@ spam = logged(func=spam, level=logging.CRITICAL, name="example", message=None)
 	\item Нужно с великой осторожностью объединять пулы процессов с программами, которые используют потоки.
 \end{itemize}
 
+\subsection{Пример использования пула потоков}
+
+Требуется для каждой переменной в MILP-задаче описать контекст переменной через типы переменных, которые встречаются в тех ограничениях, в которые входит рассматриваемая переменная. Для примера пусть переменная входит в 3 ограничения. В первом ограничении кроме рассматриваемой переменной есть еще две: одна, скажем, вещественная, а другая целочисиленная. Во втором ограничении кроме рассматриваемой переменной есть еще 3 вещественные. А в третьем ограничении кроме рассматриваемой есть еще одна бинарная. Тогда для рассматриваемой переменной мы должны получить такой контекст: \verb|"{CONTINUOUS": 4, "BINARY": 1, "INTEGER": 1}|. Затем полученные контексты собираются в список словарей. На этом списке требуется построить кадр данных. В данном случае это можно сделать так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+pd.DataFrame.from_dict(ChainMap(*results), orient="index")  # ОЧЕНЬ МЕДЛЕННО!
+\end{lstlisting}
+
+Построение кадра данных на 26 000 контекстов занимает около 2-х минут. Оданко, если список \verb|results| разбить на пакеты, для каждого пакета построить кадр данных, собрать в список, а затем склеить с помощью \verb|pd.concat()|, то время построения снижается до 6 секунд
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+dfs = []
+for batch_idx in range(math.ceil(len(results) / batch_size)):
+    _part = results[batch_idx * batch_size : (batch_idx + 1) * batch_size]
+    dfs.append(pd.DataFrame.from_dict(ChainMap(*_part), orient="index"))
+    
+_features = pd.concat(dfs, axis=0)
+\end{lstlisting}
+
+Каждое обращение к \verb|executor.submit| \emph{планирует выполнение} одного вызываемого объекта и возвращает экзмепляр \verb|Future|. Первый аргумент -- сам вызываемый объект, остальные -- передаваемые ему аргументы. 
+
+Функция \verb|as_completed()| возвращает итератор, который отдает будущие объекты по мере их завершения: \verb|as_completed()| возвращает \emph{только уже завершенные} будущие объекты.
+
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def _get_var_context_types(
+	self,
+	conss: t.Iterable[t.Tuple[str, dict]],
+	var_name: str,
+) -> dict:
+	"""
+	Gets var types in context current var. For example,
+	"y_var_1" -> {"CONTINUOUS": 8, "INTEGER": 4, "BINARY": 0}
+	"""
+	cons_name: str
+	cons: dict
+	_var_types: t.List[str] = []
+	var_context_types: t.Dict[str, int]
+	
+	for cons_name, cons in conss:
+		if var_name in cons:
+		_var_types.extend(
+			[
+				self._var_name_to_var_type.get(_var_name)
+				for _var_name in cons.keys()
+				if var_name != _var_name
+			]
+		)
+	
+	if not _var_types:
+		var_context_types = {VAR_TYPE_CONTINUOUS: 0, VAR_TYPE_BINARY: 0, VAR_TYPE_INTEGER: 0}
+	else:
+		var_context_types = Counter(_var_types)
+	
+		not_represented_var_types: t.Set[str] = {
+			VAR_TYPE_CONTINUOUS,
+			VAR_TYPE_BINARY,
+			VAR_TYPE_INTEGER,
+		}.difference(set(_var_types))
+	
+		if not_represented_var_types:
+			for var_type in not_represented_var_types:
+				var_context_types.update({var_type: 0})
+	
+	return {var_name: var_context_types}
+
+def build_var_context_types(
+	self,
+	var_names: t.List[str],
+	conss: t.Iterable[t.Tuple[str, dict]],
+	batch_size: int = 2_000,
+	max_n_threads: int = 100,
+) -> pd.DataFrame:
+	"""
+	Builds features for var context types in parallel mode
+	"""
+	with ThreadPoolExecutor(max_workers=max_n_threads) as executor:
+		to_do: t.List[Future] = []
+	
+		for var_name in tqdm(var_names):
+			future: Future = executor.submit(self._get_var_context_types, conss, var_name)
+			to_do.append(future)
+	
+		results: t.List[dict] = []
+		for future in as_completed(to_do):
+			result = future.result()
+			results.append(result)
+	
+	dfs: t.List[pd.DataFrame] = []
+	for batch_idx in tqdm(range(math.ceil(len(results) / batch_size))):
+		_part = results[batch_idx * batch_size : (batch_idx + 1) * batch_size]
+		dfs.append(pd.DataFrame.from_dict(ChainMap(*_part), orient="index"))
+	
+	_features = pd.concat(dfs, axis=0)
+	_features.columns = [f"{col_name.lower()}_type_context" for col_name in _features.columns]
+	
+	return _features
+\end{lstlisting}
+
 \subsection{Процессы, потоки и GIL в Python}
 
 Выдержка из книги Л. Рамальо \cite[\strbook{650}]{ramalho:python-2022}:
