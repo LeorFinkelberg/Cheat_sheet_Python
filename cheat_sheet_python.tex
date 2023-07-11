@@ -400,6 +400,39 @@ $ PYTHONPATH=./src pytest -v
 $ PYTHONPATH=./src pytest -v --cov=. --cov-report=html
 \end{lstlisting}
 
+\section{Метод \texttt{\_\_repr\_\_}}
+
+Метод \verb|__repr__| предназначен для вывода полезной информации на шаге отладки, а метод \verb|__str__| -- вывода полезной информации для пользователей. При этом принято, чтобы метод \verb|__repr__| возвращал такую строку, обернув которую функцией \verb|eval()|, можно было получить экземпляр класса.
+	
+Для того чтобы специальный метод \verb|__repr__| мог аккуратно выводить сигнатуру класса удобно воспользоваться модулем \verb|inspect|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import inspect
+
+class MyClass:
+    def __init__(self, name: str, age: int):
+        self.name = name
+        self.age = age
+        
+    def __repr__(self):
+        _args: t.List[str] = []
+        # аргументы класса: name и age
+        _class_args = tuple(inspect.signature(type(self)).parameters.keys())
+        _obj_attrs = self.__dict__
+        
+        for key, value in _obj_attrs.items():
+            if key in _class_args:
+                # обязательно использовать сырое форматироваие !r
+                _args.append(f"{key}={value!r}")  
+        args = ", ".join(_args)
+        
+        return f"{type(self).__name__}({args})
+\end{lstlisting}
+		
+		
+
 \section{Замечание о пользовательских пакетах}
 
 При написании пользовательских пакетах файл зависимостей должен быть как можно менее ограничительным
