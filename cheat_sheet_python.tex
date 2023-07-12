@@ -400,7 +400,42 @@ $ PYTHONPATH=./src pytest -v
 $ PYTHONPATH=./src pytest -v --cov=. --cov-report=html
 \end{lstlisting}
 
-\section{Метод \texttt{\_\_repr\_\_}}
+\section{Раскраска ячеек в Jupyterlab}
+
+Чтобы покрасить ячейку в заданный нужно добавить следующие функции в блокнот
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from IPython.core.magic import register_cell_magic
+from IPython.display import HTML, display
+
+def set_background(color):    
+	script = (
+		"var cell = this.closest('.jp-CodeCell');"
+		"var editor = cell.querySelector('.jp-Editor');"
+		"editor.style.background='{}';"
+		"this.parentNode.removeChild(this)"
+	).format(color)
+
+	display(HTML('<img src onerror="{}" style="display:none">'.format(script)))
+
+@register_cell_magic
+	def background(color, cell):
+	set_background(color)
+	return eval(cell)
+\end{lstlisting}
+
+Затем нужно просто запустить ячейку с магической командой \verb|%%background _color_|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+%%background red
+# здесь какой-то код
+\end{lstlisting}
+
+\section{Метод \texttt{\_\_repr\_\_} и модуль \texttt{inspect}}
 
 Метод \verb|__repr__| предназначен для вывода полезной информации на шаге отладки, а метод \verb|__str__| -- вывода полезной информации для пользователей. При этом принято, чтобы метод \verb|__repr__| возвращал такую строку, обернув которую функцией \verb|eval()|, можно было получить экземпляр класса.
 	
