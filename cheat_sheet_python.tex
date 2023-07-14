@@ -420,7 +420,7 @@ class ThreadSaveGenerator:
 	
 	def _next(self):
 		with self.lock:
-		return self.gen
+			return self.gen
 \end{lstlisting}
 
 Затем нужно просто <<пропустить>> генератор через этот класс и пользоваться генератором как раньше
