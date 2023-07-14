@@ -400,6 +400,42 @@ $ PYTHONPATH=./src pytest -v
 $ PYTHONPATH=./src pytest -v --cov=. --cov-report=html
 \end{lstlisting}
 
+\section{Ошибка ValueError: generator already executing в многопоточных приложениях с генераторами}
+
+Ошибка <<ValueError: generator already executing>> возникает когда потоки пытаются одноврменно обратиться к генератору. Можно просто добавить блокировку на вызов следующего метода
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import threading
+
+
+class ThreadSaveGenerator:
+	def __init__(self, gen):
+		self.gen = gen
+		self.lock = threading.Lock()
+	
+	def __iter__(self):
+		return self._next()
+	
+	def _next(self):
+		with self.lock:
+		return self.gen
+\end{lstlisting}
+
+Затем нужно просто <<пропустить>> генератор через этот класс и пользоваться генератором как раньше
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+conss = ThreadSaveGenerator(self._make_generator(model))
+
+for cons in conss:
+    # что-то делаем
+\end{lstlisting}
+
+
+
 \section{Раскраска ячеек в Jupyterlab}
 
 Чтобы покрасить ячейку в заданный нужно добавить следующие функции в блокнот
