@@ -400,6 +400,151 @@ $ PYTHONPATH=./src pytest -v
 $ PYTHONPATH=./src pytest -v --cov=. --cov-report=html
 \end{lstlisting}
 
+\section{Ошибка ValueError: generator already executing в многопоточных приложениях с генераторами}
+
+Ошибка <<ValueError: generator already executing>> возникает когда потоки пытаются одноврменно обратиться к генератору. Можно просто добавить блокировку на вызов следующего метода
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import threading
+
+
+class ThreadSaveGenerator:
+	def __init__(self, gen):
+		self.gen = gen
+		self.lock = threading.Lock()
+	
+	def __iter__(self):
+		return self._next()
+	
+	def _next(self):
+		with self.lock:
+			return self.gen
+\end{lstlisting}
+
+Затем нужно просто <<пропустить>> генератор через этот класс и пользоваться генератором как раньше
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+conss = ThreadSaveGenerator(self._make_generator(model))
+
+for cons in conss:
+    # что-то делаем
+\end{lstlisting}
+
+
+
+\section{Раскраска ячеек в Jupyterlab}
+
+Чтобы покрасить ячейку в заданный нужно добавить следующие функции в блокнот
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from IPython.core.magic import register_cell_magic
+from IPython.display import HTML, display
+
+def set_background(color):    
+	script = (
+		"var cell = this.closest('.jp-CodeCell');"
+		"var editor = cell.querySelector('.jp-Editor');"
+		"editor.style.background='{}';"
+		"this.parentNode.removeChild(this)"
+	).format(color)
+
+	display(HTML('<img src onerror="{}" style="display:none">'.format(script)))
+
+@register_cell_magic
+	def background(color, cell):
+	set_background(color)
+	return eval(cell)
+\end{lstlisting}
+
+Затем нужно просто запустить ячейку с магической командой \verb|%%background _color_|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+%%background red
+# здесь какой-то код
+\end{lstlisting}
+
+\section{Разреженные матрицы \texttt{LIL} и \texttt{CSC}}
+
+Для представления больших матриц (тысячи строк на тысячи столбцов), которые ограничиваются небольшим числом операций, удобно использовать \verb|scipy.sparse.lil_matrix|, то есть матрицы в формате списка списков разреженных матриц. Такие матрицы эффективны с точки зрения заполнения. Пример
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from scipy.sparse import lil_matrix, csc_matrix
+
+_matrix = lil_matrix((n_conss, n_vars), dtype=np.int8)
+
+conss_gen = ((cons_name, cons) for cons_name, cons in model.all_conss.items())
+for cons_name, cons in tqdm(conss_gen, total=n_conss, desc="Building sparse matrix"):
+	cons_idx = cons_name_to_cons_idx.get(cons_name)
+	_var_names_context = list(cons.keys())
+	var_idxs = var_name_to_var_idx.loc[_var_names_context].values.tolist()
+	_matrix[cons_idx, var_idxs] = 1
+\end{lstlisting}
+
+Но с точки зрения доступа по столбцам эффективнее использовать разреженные матрицы в формате сжатого разреженного столбца -- так как LIL-матрицы строко-ориентированные
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+_matrix.tocsc()
+\end{lstlisting}
+
+Теперь можно эффективно получить множество индексов столбцов, содержащих ненулевые элементы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+_set_context_var_idxs: t.Set[int] = set(
+    self._matrix[self._matrix.getcol(var_idx).nonzero()[0], :].nonzero()[1]
+)
+\end{lstlisting}
+
+
+
+
+
+\section{Метод \texttt{\_\_repr\_\_} и модуль \texttt{inspect}}
+
+Метод \verb|__repr__| предназначен для вывода полезной информации на шаге отладки, а метод \verb|__str__| -- вывода полезной информации для пользователей. При этом принято, чтобы метод \verb|__repr__| возвращал такую строку, обернув которую функцией \verb|eval()|, можно было получить экземпляр класса.
+	
+Для того чтобы специальный метод \verb|__repr__| мог аккуратно выводить сигнатуру класса удобно воспользоваться модулем \verb|inspect|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import inspect
+
+class MyClass:
+    def __init__(self, name: str, age: int):
+        self.name = name
+        self.age = age
+        
+    def __repr__(self):
+        _args: t.List[str] = []
+        # аргументы класса: name и age
+        _class_args = tuple(inspect.signature(type(self)).parameters.keys())
+        _obj_attrs = self.__dict__
+        
+        for key, value in _obj_attrs.items():
+            if key in _class_args:
+                # обязательно использовать сырое форматироваие !r
+                _args.append(f"{key}={value!r}")  
+        args = ", ".join(_args)
+        
+        return f"{type(self).__name__}({args})
+\end{lstlisting}
+		
+		
+
 \section{Замечание о пользовательских пакетах}
 
 При написании пользовательских пакетах файл зависимостей должен быть как можно менее ограничительным
