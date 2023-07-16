@@ -471,6 +471,47 @@ numbers = none
 # здесь какой-то код
 \end{lstlisting}
 
+\section{Разреженные матрицы \texttt{LIL} и \texttt{CSC}}
+
+Для представления больших матриц (тысячи строк на тысячи столбцов), которые ограничиваются небольшим числом операций, удобно использовать \verb|scipy.sparse.lil_matrix|, то есть матрицы в формате списка списков разреженных матриц. Такие матрицы эффективны с точки зрения заполнения. Пример
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from scipy.sparse import lil_matrix, csc_matrix
+
+_matrix = lil_matrix((n_conss, n_vars), dtype=np.int8)
+
+conss_gen = ((cons_name, cons) for cons_name, cons in model.all_conss.items())
+for cons_name, cons in tqdm(conss_gen, total=n_conss, desc="Building sparse matrix"):
+	cons_idx = cons_name_to_cons_idx.get(cons_name)
+	_var_names_context = list(cons.keys())
+	var_idxs = var_name_to_var_idx.loc[_var_names_context].values.tolist()
+	_matrix[cons_idx, var_idxs] = 1
+\end{lstlisting}
+
+Но с точки зрения доступа по столбцам эффективнее использовать разреженные матрицы в формате сжатого разреженного столбца -- так как LIL-матрицы строко-ориентированные
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+_matrix.tocsc()
+\end{lstlisting}
+
+Теперь можно эффективно получить множество индексов столбцов, содержащих ненулевые элементы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+_set_context_var_idxs: t.Set[int] = set(
+    self._matrix[self._matrix.getcol(var_idx).nonzero()[0], :].nonzero()[1]
+)
+\end{lstlisting}
+
+
+
+
+
 \section{Метод \texttt{\_\_repr\_\_} и модуль \texttt{inspect}}
 
 Метод \verb|__repr__| предназначен для вывода полезной информации на шаге отладки, а метод \verb|__str__| -- вывода полезной информации для пользователей. При этом принято, чтобы метод \verb|__repr__| возвращал такую строку, обернув которую функцией \verb|eval()|, можно было получить экземпляр класса.
