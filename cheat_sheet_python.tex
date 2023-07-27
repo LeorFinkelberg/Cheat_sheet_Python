@@ -2503,6 +2503,14 @@ mtx[100:300, 200:250] = 1
 (mtx[100, :] == 1).indices
 \end{lstlisting}
 
+Применить регулярное выражение к строковому атрибуту кадра данных, а затем сделать его вещественным можно так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df["col_name"].str.extract(r"^.*?(\d+[.]?\d+)s$").astype(np.float32)
+\end{lstlisting}
+
 Вывести точную информацию об использовании памяти
 \begin{lstlisting}[
 style = ironpython,
