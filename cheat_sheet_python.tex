@@ -327,6 +327,29 @@ numbers = none
 $ pip install --no-deps -r req.txt
 \end{lstlisting}
 
+\section{Аннотация типов}
+
+\emph{Значением функции} всегда является \emph{конкретный объект}, поэтому в аннотации для \emph{возвращаемого значения} должен быть указан \emph{конкретный тип} \cite[\strbook{277}]{ramalho:python-2022}. В разделе документации, посвященном \verb*|typing.List| говорится, что обобщенная версия \verb*|list| полезна для аннотирования 
+\emph{типов возвращаемых значений}, а для аннотирования \emph{аргументов} лучше использовать \emph{абстрактные} коллекции, например \verb*|Sequence| или \verb*|Iterable|.
+
+{\color{blue}
+То есть функция \emph{всегда} принимает объекты <<широких>> типов, то есть подтипов или абстрактных типов (чтобы можно было, скажем вместо \verb*|dict| передать \verb*|OrderDict| или \verb*|UserDict|), а возвращает объекты <<узких>> \underline{конкретных} типов.
+}
+
+Начиная с версии Python 3.9 большинство ABC из модуля \verb*|collections.abc| и другие конкретные классы из модуля \verb*|collections|, а также встроенные коллекции поддерживают нотацию аннтотации обобщенных классов вида \verb*|collections.deque[str]|. Соответвствуюшие коллекции из модуля \verb*|typing| нужны только для поддержки кода, написанного для версии Python 3.8 или более ранней \cite[\strbook{278}]{ramalho:python-2022}.
+
+То есть
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from collections.abc import Iterable
+
+def f(seq: Iterable[str]) -> list[str]:
+    return sorted(seq, key=len)
+\end{lstlisting}
+
+
 \section{Приемы работы с pytest}
 
 \subsection{Особенности импорта}
