@@ -349,6 +349,109 @@ def f(seq: Iterable[str]) -> list[str]:
     return sorted(seq, key=len)
 \end{lstlisting}
 
+В документе PEP 613 <<Explicit Type Aliases>> введен специальный тип \verb|TypeAlias|, идея которого в том, чтобы сделать создаваемые пседонимы типов хорошо видимыми и упростить для них проверку типов
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from typing import TypeAlias
+
+FromTo: TypeAlias = tuple[str, str]
+\end{lstlisting}
+
+Тип \verb*|Sequence| можно использовать тогда, когда по логике нужно знать длину последовательности. Как и \verb*|Sequence|, объект \verb*|Iterable| лучше использовать в качестве \emph{типа параметра}. В качестве типа возвращаемого значения он не позволяет составить представление о том, что же будет на выходе. Функция должна более ясно говорить о том, какой конкретный тип она возвращает.
+
+Если требуется указать \emph{верхнюю границу допустимых типов} (параметр-тип может быть \verb*|Hashable| или любым его \emph{подтипом}), то можно сделать так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from collections.abc import Iterable, Hashable
+from typing import TypeVar
+
+HashableT = TypeVar("T", bound=Hashable)
+
+def mode(data: Iterable[HashableT]) -> HashableT:
+    pairs = Counter(data).most_common(1)
+    if len(pairs) == 0:
+        raise ValueError("no mode for emtpy data")
+    
+    return pairs[0][0]
+\end{lstlisting}
+
+А ограничить \verb*|TypeVar| можно так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+NumberT = TypeVar("NumberT", float, Decimal, Fraction)
+\end{lstlisting}
+
+С помощью \verb*|Iterator| можно зааннотировать генераторное выражение, например
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from collections.abc import Iterator
+
+# генераторное выражение
+series: Iterator[tuple[int, str]] = (len(s), s) for s in ...)
+\end{lstlisting}
+
+Если нужна аннотация типа для функций с \emph{гибкой сигнатурой}, нужно заменить весь список параметров многоточием \cite[\strbook{289}]{ramalho:python-2022}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+Callable[..., ReturnType]
+\end{lstlisting}
+
+Если даны тип \verb*|T1| и подтип \verb*|T2|, то \verb*|T2| \emph{совместим} с типом \verb*|T1| (подстановка Лисков) \cite[\strbook{268}]{ramalho:python-2022}.
+
+\subsection{Вариантность в типах Callable}
+
+Пусть есть функция высшего порядка, которая принимает два вызываемых объекта
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from collections.abc import Callable
+
+def update(
+    probe: Callable[[], float],  # "-" у аргумента `probe` КОНТРАвариантная позиция
+    display: Callable[[float], None],  # "-" у аргумента `display` КОНТРАвариантная позиция
+) -> None:  # "+" у выхода функции КОвариантная позиция
+    ...
+\end{lstlisting}
+
+Чтобы сохранить правильную вариантность по отношению к аргументам функции \verb*|update| в \verb*|Callable| вариантность \emph{инвертируется}, то есть $\text{Callable[[\ ]}_+, \text{float}_{-}]$.
+
+Например, аргументу \verb*|probe| можно вместо объекта типа \verb|Callable[[], float]| передать объект типа \verb|Callable[[], int]|, так как по отношению к \verb*|Callable| \verb*|float| стоит в контравариантной позиции (\texttt{-}) и потому допускает замену на свой \emph{подтип}.
+
+Напротив в \verb|Callable[[float], None]| \verb*|float| стоит в ковариантной позиции (\texttt{+}) и допускает замену на свой \emph{супертип}.
+
+В общем случае аргументы функции стоят в контравариантной поизции (\texttt{-}), так как функция ожидает объекты более общих типов (подтипов или абстрактных типов), а выход функций стоит в коваринтной позиции, чтобы можно было возвращать более конкретный тип.
+
+\subsection{Аннотирование чисто позиционных и вариадических параметров}
+
+Пример
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import typing as t
+
+def tag(
+    name: str,
+    /,  # все что слева от слеша это чисто позиционные аргументы
+    *content: str,
+    class_: t.Optional[str] = None,
+    **attrs: str,
+) -> None:
+    ...
+\end{lstlisting}
+
+Внутри функции \verb*|content| будет иметь тип \verb|tuple[str, ...]|, а \verb*|attrs| -- тип \verb|dict[str, str]|. Если бы аннотация имела вид \verb*|**attrs: float|, то аргумент \verb*|attr| имел бы тип \verb|dict[str, float]|.
 
 \section{Приемы работы с pytest}
 
