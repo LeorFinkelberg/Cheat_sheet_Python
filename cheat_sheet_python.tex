@@ -668,6 +668,17 @@ class MyClass:
         
         return f"{type(self).__name__}({args})
 \end{lstlisting}
+
+Чтобы получить имеющиеся функции в модуле (пусть называется \verb*|promotions|) можно сделать так \cite[\strbook{343}]{ramalho:python-2022}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import promotions
+import inspect
+
+promos = [func for _, func in inspect.getmembers(promotions, inspect.isfunction)]
+\end{lstlisting}
 		
 		
 
