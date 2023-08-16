@@ -327,6 +327,8 @@ numbers = none
 $ pip install --no-deps -r req.txt
 \end{lstlisting}
 
+
+
 \section{Аннотация типов}
 
 Аннотации обрабатываются интерпретатором \emph{на этапе импорта}, тогда же, когда значения по умолчанию \cite[\strbook{508}]{ramalho:python-2022}.
@@ -1070,49 +1072,141 @@ $ twine upload dist/*
 
 \section{Инвариантность, ковариантность и контрвариантность}
 
-Ковариантность позволяет использовать переданный тип или его дочерние типы, инвариантность -- тот только тип, который передали, а контрвариативность -- более общие типы.
-Функции являются \emph{контрвариантными} к своим аргументам и \emph{ковариантными} к результатам. В общем случае контравариантность имеет смысл использовать для входных значений, получаемых объектами, и ковариантность -- для выходных значений. Если объект допускает и то, и другое, тип следует оставить \emph{инвариантным}. В общем случае инвариантность свойственна \emph{изменяемым} структурам данных (списки в Python инвариантны). Параметры методов являются контравариантными позициями, а возвращаемые типы -- ковариантными. Однако в внутри функции вариантность параметров изменяется, -- они становятся ковариантными \cite[\strbook{320}]{hostmann:scala-2013}
+Обобщенный класс с ковариантным параметром типа
 \begin{lstlisting}[
 style = ironpython,
 numbers = none
 ]
-from collection.abc import Callable
+T_co = TypeVar("T_co", covariant=True)
 
-def give_task_for_programmer(
-    task: Callable[[Programmer], None],  # контравариантная позиция -
-    programmer: Programmer,              # контравариантная позиция -
-) -> None:
-    task(programmer)
-
-def task_for_programmer(programmer: Programmer):
-    pass
-
-def task_for_employee(employee: Employee):
-    pass
-
-def task_for_frontender(frontender: Frontender):
-    pass
-
-# Все нормально! Передаем родительский тип типа Programmer
-give_task_for_programmer(
-	task_for_programmer,  # ожидается Callable[[Programmer], None], передается Callable[[Programmer], None]
-	programmer
-)
-
-# Все нормально! Передаем родительский тип типа Programmer
-give_task_for_programmer(
-    task_for_employee,  # ожидается Callable[[Programmer], None], передается Callable[[Employee], None]
-	programmer
-)
-
-# Ошибка!!! Передаем дочерний тип типа Programmer
-give_task_for_programmer(
-    task_for_frontender,  # ожидается Callable[[Programmer], None], передается Callable[[Frontender], None] 
-	programmer
-)
+class BeverageDispenser(Generic[T_co]):
+    def __init__(self, beverage: T_co) _> None:
+        self.beverage = beverage
+    
+    def dispense(self) -> T_co:
+        return self.beverage
+          
+def install(dispenser: BeverageDispenser[Juice]) -> None:
+    """..."""
 \end{lstlisting}
 
-\verb|collection.abc.Sequence| -- это неизменяемая структура, поэтому она ковариантна, а списки -- изменяемые структуры, поэтому они инвариантны.
+По соглашению суффикс \verb*|_co| в typeshed обозначает ковариантные параметры-типы.
+
+\emph{Ковариантность}: связь тип-подтип между параметризованными классами изменяется в том же направлении, что и связь тип-подтип между параметрами-типами \cite[\strbook{516}]{ramalho:python-2022}.
+
+Пример на контравариантность 
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from typing import TypeVar, Generic
+
+class Refuse:
+    """..."""
+    
+class Biodegradable(Refuse):
+    "'''..."""
+    
+class Compostable(Biodegradable):
+    """..."""
+
+T_contra = TypeVar("T_contra", contravariant=True)
+
+class TrashCan(Generic[T_contra]):
+    def put(self, refuse: T_contra) -> None:
+        """..."""
+        
+def deploy(trash_can: TrashCan[Biodegradable]):
+    """..."""
+\end{lstlisting}
+
+\verb|T_contra| -- принятое по соглашению имя котравариантной переменной-типа.
+
+\subsection{Обзор инваринтности}
+
+\subsubsection{Инвариантные типы}
+
+Обобщенный тип \verb*|L| \emph{инвариантен}, если между двумя параметризованными типами нет отношения тип-подтип, даже если такое отношение существует между фактическими параметрами. Иными словами, если \verb|L| инвариантен, то \verb*|L[A]| не является не подтипом, ни супертипом \verb|L[B]|. Они \emph{несовместимы} в обоих направлениях.
+
+\emph{Изменяемые} типы в Python по умолчанию инваринтны. Например, \verb*|list[int]| не совместим с \verb|list[float]|, и наоборот.
+
+В общем случае, если формальный параметр-тип встречается в аннотациях типов аргументов метода и тот же параметр встречается в типе возвращаемого методом значения, то параметр должен быть \emph{инваринтен}, чтобы гарантировать \emph{типобезопасность} при \emph{обновлении} коллекции и \emph{чтении} из нее \cite[\strbook{518}]{ramalho:python-2022}.
+
+\subsubsection{Ковариантные типы}
+
+Некоторые авторы используют символы \verb*|<:| и \verb|:>|, чтобы обозначить следующие отношения: \verb|A :> B| означает, что \verb|A| является супертипом \verb*|B|.
+
+Если \verb|A :> B|, то обобщенный тип \verb*|C| ковариантен, когда \verb|C[A] :> C[B]|. Направление символа \verb*|:>| одинаково в обоих случаях, когда \verb|A| встречается слева от \verb*|B|. Ковариантные обобщенные типы повторяют отношение тип-подтип между фактическими параметрами-типами.
+
+Например
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+           float :> int
+frozenset[float] :> frozenset[int]
+\end{lstlisting}
+
+Любой код, ожидающий итератор \verb|abc.Iterator[float]|, который отдает числа с плавающей точкой, может безопасно использовать итератор \verb*|abc.Iterator[int]|, отдающий целые числа. По той же причине типы \verb|Callable| ковариантны относительно типа возвращаемого значения \cite[\strbook{519}]{ramalho:python-2022}.
+
+\subsection{Контравариантные типы}
+
+Если \verb|A :> B|, то обобщенный тип \verb|K| контравариантен, если \verb*|K[A] <: K[B]|. Контравариантные обобщенные типы обращают связь тип-подтип между фактическими параметрами-типами.
+
+Пример может служить класс \verb*|TrashCan|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+          Refuse :> Biodegradable
+TrashCan[Refuse] <: TrashCan[Biodegradable] 
+\end{lstlisting}
+
+Контравариантный контейнер обычно представляет собой структуру данных, предназначенную только для записи и называемую <<стоком>>. В стандартной библиотеке нет таких коллекций, но есть несколько типов с контравариантным параметрами-типами.
+
+Тип \verb|Callable[[ParamType, ...], ReturnType]| контравариантен относительно параметров-типов, но ковариантен относительно \verb|ReturnType| \cite[\strbook{519}]{ramalho:python-2022}. Главное то, что \emph{контравариантные} формальные параметры определяют \emph{типы аргументов}, используемых для вызова или отправки данных объекту, тогда как \emph{ковариантные} формальные параметры определяют \emph{типы выходов}, порождаемых объектов, -- тип отдаваемого или возвращаемого значения, в зависимости от объекта.
+
+\subsubsection{Эврестические правила вариантности}
+
+Несколько эврестических правил \cite[\strbook{520}]{ramalho:python-2022}:
+
+\begin{itemize}
+	\item Если формальный параметр-тип определяет тип данных, \emph{исходящих} из объекта, то он может быть \emph{ковариантным}.
+	
+	\item Если формальный параметр-тип определяет тип данных, \emph{входящих} в объект после его начального конструирования, то он может быть \emph{контравариантным}.
+	
+	\item Если формальный параметр-тип определяет тип данных, \emph{исходящих} из объекта, и тот же параметр определяет тип данных, \emph{входящих} в объект, то он должен быть \emph{инвариантным}.
+	
+	\item Чтобы ненароком не допустить ошибку, делайте формальные параметры инвариантными.
+\end{itemize}
+
+Тип \verb|Callable[[ParamType, ...], ReturnType]|: \verb|ReturnType| \emph{ковариантный}, а каждый \verb|ParamType| \emph{контравариантный} \cite[\strbook{520}]{ramalho:python-2022}. По умолчанию \verb|TypeVar| создает инвариантные формальные параметры, и именно так аннотированы изменяемые коллекции в стандартной библиотеке.
+
+Пример обобщенного типа с ковариантным формальным параметром-типом
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from typing import Protocol, runtime_checkable, TypeVar
+
+T_co = TypeVar("T_co", covariant=True)
+
+@runtime_checkable
+class RandomPicker(Protocol[T_co]):
+    def pick(self) -> T_co:
+        ...
+\end{lstlisting}
+
+Обощенный протокол \verb*|RandomPicker| может быть ковариантным, потому что его единственный формальный параметр встречается в \emph{типе возвращаемого значения}.
+
+
+
+
+
+
+
+
+
 
 \section{Передача параметров и возвращаемые значения}
 
