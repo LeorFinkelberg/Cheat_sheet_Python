@@ -1067,6 +1067,130 @@ class Sentence:
 В глоссарии Python недавно появился термин \emph{генераторный итератор}, так называют объекты, построенные генераторными функциями, тогда как в статье о генераторных выражениях говорится, что они возвращают <<итератор>>. Но в обоих случаях, если верить Python, возвращаются \emph{объекты-генераторы}
 }
 
+Выражение \verb|yield from| позволяет генератору делегировать работу субгенератору.
+
+Пример
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def tree(cls):
+    yield cls.__name__, 0
+    yield from sub_tree(cls, 1)
+    
+def sub_tree(cls, level):
+    for sub_cls in cls.__subclasses__():
+        yield sub_cls.__name__, level
+        yield from sub_tree(sub_cls, level + 1)
+
+def display(cls):
+    for cls_name, level in tree(cls):
+        indent = " " * 4 * level
+        print(f"{indent}{cls_name}")
+        
+        
+if __name__ == "__main__":
+    display(BaseException)
+\end{lstlisting}
+
+В любом нормальном пособии по рекурсии подчеркивается важность базы, позволяющей избежать бесконечной рекурсии. Неявное условие есть в цикле \verb|for|: если \verb*|cls.__subclasses__()| возвращает пустой список, то тело цикла не выполняется, так что рекурсивного вызова не будет. Базовым является случай, когда класс \verb|cls| \emph{не имеет подклассов}. Тогда \verb*|sub_tree| ничего не отдает, а просто возвращает управление \cite[\strbook{595}]{ramalho:python-2022}.
+
+Функции, принимающие итерируемые объекты в качестве аргументов, можно аннотировать с помощью \verb|collections.abc.Iterable| (или \verb*|typing.Iterable|, если нужно обязательно поддержать версию Python 3.8 или более ранние)
+\begin{lstlisting}[
+style = ironpython,
+numbers = none	
+]
+from collections.abc import Iterable
+
+FromTo = tuple[str, str]
+
+def zip_replace(text: str, changes: Iterable[FromTo]) -> str:
+    for from_, to in changes:
+        text = text.replace(from_, to)
+    return text
+\end{lstlisting}
+
+Начиная с версии Python 3.10 \verb|FromTo| должна иметь аннотацию типа \verb*|typing.TypeAlias|, чтобы прояснить назначение этой строки
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+FromTo: TypeAlias = tuple[str, str]
+\end{lstlisting}
+
+Типы \verb|Iterator| встречаются не так часто, как \verb*|Iterable|
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from collections.abc import Iterator
+
+def fibonacci() -> Iterator[int]:
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+\end{lstlisting}
+
+Тип \verb|Iterator| используется для генераторов, оформленных в виде функции с \verb*|yield|, а также итераторов, написанных <<вручную>> как классы с методом \verb*|__next__|. Существует также тип \verb|collections.abc.Generator| (и соответствующий объявленный {\color{red}нерекомендуемым тип \verb|typing.Generator|}), который можно использовать для аннотирования объекто-генераторв, но он слишком многословен для генераторов в роле итераторов \cite[\strbook{597}]{ramalho:python-2022}.
+
+Пример
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+# Генераторное выражение, отдающее строки
+long_kw: Iterator[str] = (k for k kwlist if len(k) >= 4)
+\end{lstlisting}
+
+\verb*|abc.Iterator[str]| совместим с \verb|abc.Generator[str, None, None]|. {\color{blue}\verb*|Iterator[T]| -- это краткое обозначение \verb|Generator[T, None, None]|}. Обе аннотации означают <<\emph{генератор}, который \underline{отдает} объект типа \verb|T|, но \emph{не потребляет} и \emph{не возвращает} значений>>. Генераторы, способные потреблять и возвращать значения, называются сопрограммами.
+
+Генераторы чаще используются в роли простых итераторов.
+
+Единственное разумное действие с \emph{генератором}, используемым \emph{в роли итератора}, -- вызов метода \verb*|next(it)| прямо или косвенно посредством цикла \verb*|for| и других форм итерирования.
+
+Есть еще тип \verb*|typing.Coroutine| (объявленный нерекомендуемым) и \verb|collections.abc.Coroutine| (обобщенный начиная с версии Python 3.9) предназначены для аннотирования \emph{только платформенных}, но \emph{не классических сопрограмм}.
+
+Если требуется использовать аннотации типов в сочетании с классическими сопрограммами, то придется испытывать замешательство, аннотируя их как \verb|Generator[YieldType, SendType, ReturnType]|.
+
+Из презентаций Бизли \cite[\strbook{599}]{ramalho:python-2022}:
+\begin{itemize}
+	\item генераторы порождают данные для итерирования,
+	
+	\item сопрограммы являются потребителями данных,
+	
+	\item сопрограммы не имеют никакого отношения к итерированию.
+\end{itemize}
+
+Пример сопрограммы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def averager() -> Generator[float, float, None]:
+    total = 0.0
+    count = 0
+    average = 0.0
+    while True:
+        term = yield average
+        total += term
+        count += 1
+        average = total / count
+        
+coro_avg = averager()
+next(coro_avg)  # 0.0
+coro_avg.send(10)  # 10
+coro_avg.send(30)  # 20
+\end{lstlisting}
+
+Здесь не нужны ни атрибуты экземпляра, ни замыкания. Потому-то сопрограммы и являются привлекательной альтернативой обратным вызовам при асинхронном программировании -- они сохраняют локальное состояние между активациями.
+
+В этом тесте вызов \verb*|next(coro_avg)| заставляет сопрограмму дойти до \verb|yield|, при этом будет отдано начальное значение \verb*|average|. Запустить сопрограмму можно также, вызвав \verb|coro_avg.send(None)|, -- именно так и поступает встроенная функция \verb*|next()|. Но отправить какое-то значение, кроме \verb|None|, нельзя, потому что сопрограмма может принимать отправленные значения, только когда приостановлена в точке \verb*|yield|. Вызов \verb|next()| или \verb*|.send(None)|, чтобы продвинуть выполнение к первому предложению \verb|yield|, называется <<инициализацией сопрограммы>>.
+
+
+
+
+
 
 
 
