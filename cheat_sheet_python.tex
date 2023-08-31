@@ -1539,9 +1539,129 @@ def speakers(self):
 
 При вычислении выражения вида \verb*|obj.data| поиска \verb|data| начинается с класса, а не с экземпляра класса \cite[\strbook{797}]{ramalho:python-2022}.
 
+Следует считать, что \emph{специальные методы ищутся в самом классе}, даже если вызываются от имени экземпляра. По этой причине специальные методы не маскируются одноименными атрибутами экземпляра \cite[\strbook{804}]{ramalho:python-2022}.
 
+Метод \verb*|__getattr__| всегда вызывается после \verb|__getattribute__| и только в том случае, когда \verb*|__getattribute__| возбуждает исключение \verb|AttributeError| \cite[\strbook{805}]{ramalho:python-2022}.
 
+\subsection{Дескрипторы атрибутов}
 
+Дескипторы -- это класс, который реализует динамический протокол, содержащий методы \verb*|__get__|, \verb|__set__| и \verb*|__delete__|. 
+
+Класс \verb|property| реализует весь протокол дескриптора. Как обычно, разрешается реализовать протокол частично. На самом деле большинство дескприторов, встречающихся в реальных программах, реализуют только методы \verb*|__get__| и \verb*|__set__|, а многие -- и вовсе лишь один из них. Пользовательские функции -- это дескрипторы.
+
+Класс, в котором реализован хотя бы один из методов \verb|__get__|, \verb*|__set__| или \verb|_delete__|, является дескриптором. Для использования дескриптора мы объявляем его экземпляры как артибуты класса какого-то другого класса \cite[\strbook{811}]{ramalho:python-2022}.
+
+Для поддержки интроспекции и других приемов метапрограммирования пользователям рекомендуется возвращать из \verb|__get__| экземпляр дескриптора, если доступ к управляемому атрибуту производится через класс. Пример \cite[\strbook{814}]{ramalho:python-2022}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+def __get__(self, instance, owner):
+    if instance is None:
+        return self
+    else:
+        return instance.__dict__[self.storage_name]
+\end{lstlisting}
+
+В методе \verb*|__set__| \verb|self| -- это экземпляр дескриптора, а \verb*|instance| -- это экземпляр управляемого класса.
+
+Чтобы не набирать повторно имя атрибута в объявлении дескриптора, мы реализуем специальный метод \verb|__set_name__|, который будет устанавливать атрибут в каждом экземпляре дескриптора. Этот метод был добавлен в протокол дескприпторов в версии Python 3.6.
+
+Интерпретатор вызывает \verb*|__set_name__| для каждого дескриптора, который находит в теле управляемого класса, -- если дескпритор реализует его. Пример
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class Quantity:
+    """
+    Дескрипторный класс
+    """
+    def __set_name__(self, owner, name):
+        self.storage_name = name
+    
+    def __set__(self, instance, value):
+        if value > 0:
+            instance.__dict__[self.storage_name] = value
+        else:
+            msg = f"{self.storage_name} must be > 0"
+            raise ValueError(msg)
+            
+    # def __get__ # Не нужен
+    
+class LineItem:
+    """
+    Управляемый класс
+    """
+    weight = Quantity()
+    price = Quantity()
+    
+    def __init__(self, description, weight, price):
+        self.description = description
+        self.weight = weight
+        self.price = price
+        
+    def subtotal(self):
+        return self.weight * self.price
+\end{lstlisting}
+
+\verb|self| -- экземпляр дескриптора, \verb*|owner| -- управляемый класс, а \verb|name| -- имя атрибута \verb*|owner|. 
+
+Реализовывать метод \verb|__get__| необязательно, потому что имя \emph{атрибута хранения} совпадает с именем \emph{управляемого атрибута}. Выражение \verb*|product.price| получает атрибут \verb|price| непосредственно из экземпляра \verb*|LineItem|.
+
+Обычно мы не определяем дескриптор в том же модуле, в каком он используется, а заводим отдельный служебный модуль, предназначенный для использования во всем приложении, а то и во многих приложениях, если разрабатывается библиотека или каркас.
+
+Паттерн \emph{самоделегирования} (чаще его называют \emph{паттерном Шаблонный метод})
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import abc
+
+class Validated(abc.ABC):
+    def __set_name__(self, owner, name):
+        self.storage_name = name
+        
+    def __set__(self, instance, value):
+        value = self.validate(self.storage_name, value)
+        instance.__dict__[self.storage_name] = value
+        
+    @abc.abstractmethod
+    def validate(self, name, value):
+        """Вернуть проверенное значение или возбудить ValueError"""
+\end{lstlisting}
+
+Метод \verb|__set__| делегирует проверку методу \verb*|validate|, который нужно переопределить в подклассе.
+
+Пишем конкретные подклассы
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class Quantity(Validated):
+    """Число, большее нуля"""
+    def validate(self, name, value):
+        if value <= 0:
+            raise ValueError(f"{name} must be > 0")
+        return value
+        
+class NonBlank(Validated):
+    """Строка, содержащая хотя бы один символ, отличный от пробела"""
+    def validate(self, name, value):
+        value = value.strip()
+        if not value:
+            raise ValueError("f"{name} cannot be blank")
+        return value
+\end{lstlisting}
+
+В Python существует важная асимметрия. \emph{При чтении} атрибута через экземпляр обычно возвращается атрибут, определенный в этом экземпляре, а если такого атрибута в экземпляре не существует, то атрибут класса. С другой стороны, в случае \emph{присваивания} атрибуту экземпляра обычно создается атрибут в этом экземпляре, а класс вообще никак не задействуется.
+
+Эта асимметрия распространяется и на дескрипторы, в результате чего образуются две категории дескрипторов, различающиеся наличием или отсутствием метода \verb|__set__|. Если \verb*|__set__| присутствует, то класс является \emph{переопределяющим дескриптором}, а иначе \emph{непереопределяющим} \cite[\strbook{820}]{ramalho:python-2022}.
+
+\subsection{Переопределяющие и непереопределяющие дескрипторы}
+
+Дескриптор, в котором реализован метод \verb|__set__|, называется \emph{переопределяющим}, потому что, несмотря на то что этот дескриптор является \emph{атрибутом класса}, он перехватывает все попытки присвоить значение \emph{атрибутам экземпляра}.
+
+Свойства также являются переопределяющими дескрипторами: если мы не предоставим свою функцию установки, то по умолчанию будет использован метод \verb*|__set__| из класса \verb|property|, который возбуждает исключение \verb*|AttributeError|, показывающее, что атрибут можно \emph{только читать} \cite[\strbook{822}]{ramalho:python-2022}.
 
 
 
