@@ -1683,8 +1683,15 @@ class NonBlank(Validated):
 
 Еще раз, \verb*|property| -- это \emph{переопределяющий} дескпритор (есть метод \verb|__set__|, который возбуждает исключение \verb*|AttributeError|), а вот \verb|@functools.cached_property| порождает \emph{непереопределяющий} дескриптор.
 
+\subsection{Основы метаклассов}
 
+Метакласс -- фабрика классов. Иными словами, \emph{метакласс} -- это класс, \emph{экземплярами} которого являются \emph{классы} \cite[\strbook{854}]{ramalho:python-2022}.
 
+В объектной модели Python \emph{классы} являются \emph{объектами}, поэтому каждый класс должен быть экземпляром какого-то другого класса. По умолчанию классы Python являются \emph{экземплярами} класса \verb*|type|. Иными словами, \verb|type| -- метакласс для большинства встроенных и пользовательских классов.
+
+Любой класс является экземпляром \verb*|type|, прямо или косвенно, но только метаклассы являюется также подклассами \verb|type| \cite[\strbook{856}]{ramalho:python-2022}.
+
+Например, и \verb*|object| и \verb|ABCMeta| -- экземпляры \verb*|type|, но \verb|ABCMeta| -- еще и подкласс метакласса \verb*|type|, поскольку \verb|ABCMeta| является метаклассом.
 
 
 
@@ -4135,6 +4142,48 @@ pd.to_numeric(
     )
 )
 \end{lstlisting}
+
+\subsubsection{Работа с JSON. Комбинация \texttt{explode} и \texttt{pd.json\_normalize}}
+
+Пусть есть такой кадр данных
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df = pd.DataFrame({
+	"key1": [10],
+	"color": ["red"],
+	"records": [[  # list[dict]
+	    {"solver_name": "highs", "mip_gap": 0.001, "obj_val": 1e+20},
+	    {"solver_name": "cplex", "mip_gap": 0.015},
+	    {"solver_name": "scip", "mip_gap": 0.003}
+	]],
+})
+
+\end{lstlisting}
+
+И требуется разобрать атрибут \verb|records|, то есть список словарей представить в виде набора строк кадра данных. Сделать это можно так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+df.loc[:, "records"].explode("records", ignore_index=True)
+\end{lstlisting}
+
+Теперь эту конструкцию можно обернуть функцией \verb*|pd.json_normalize| (несогласованные поля будут забиты \verb|NaN|)
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+pd.json_normalize(df.loc[:, "records"].explode("records"))
+# out
+#  solver_name  mip_gap       obj_val
+# 0       highs    0.001  1.000000e+20
+# 1       cplex    0.015           NaN
+# 2        scip    0.003           NaN
+\end{lstlisting}
+
+
 
 
 % Источники в "Газовой промышленности" нумеруются по мере упоминания 
