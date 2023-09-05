@@ -4183,6 +4183,24 @@ pd.json_normalize(df.loc[:, "records"].explode("records"))
 # 2        scip    0.003           NaN
 \end{lstlisting}
 
+\subsubsection{Кратная подстановка столбца}
+
+Если требуется значения одного столбца подставить в несколько других столбцов, то можно поступить так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+columns: t.List[str] = [...]
+df.loc[:, columns] = np.repeat(
+    # значениями столбца "value" нужно заполнить другие столбцы
+    df["value"].values.reshape(-1, 1),
+    repeats=len(columns),
+    axis=1
+)
+\end{lstlisting}
+
+
+
 
 
 
