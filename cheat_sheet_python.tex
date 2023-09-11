@@ -492,6 +492,47 @@ def tag(
 
 Внутри функции \verb*|content| будет иметь тип \verb|tuple[str, ...]|, а \verb*|attrs| -- тип \verb|dict[str, str]|. Если бы аннотация имела вид \verb*|**attrs: float|, то аргумент \verb*|attr| имел бы тип \verb|dict[str, float]|.
 
+\section{Приемы работы с httpx}
+
+\subsection{Установка}
+
+Установить пакет можно так
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+pip install httpx
+\end{lstlisting}
+
+\subsection{Get-запрос}
+
+Например чтобы скачать mps.gz-файл с ресурса MIPLIB 2017, достаточно выполнить следующий код
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import httpx
+import pathlib2
+
+BASE_PROBLEMS_URL = "https://miplib.zib.de/WebData/instances/"
+PATH_TO_PROBLEMS_DIR = "./data/problems/"
+problem_name = "10teams.mps.gz"
+
+try:
+	r = httpx.get(
+	    BASE_PROBLEMS_URL + problem_name,
+	    timeout=5  # в секундах
+	)
+	response.raise_for_status()
+except httpx.RequestError as exc:
+    print(f"An error occurred while requesting {exc.request.url!r}.")
+except httpx.HTTPStatusError as exc:
+    print(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}.")
+
+problem = r.read()
+pathlib2.Path(PATH_TO_PROBLEMS_DIR + problem_name).write_bytes(problem)
+\end{lstlisting}
+
 \section{Приемы работы с pytest}
 
 \subsection{Особенности импорта}
