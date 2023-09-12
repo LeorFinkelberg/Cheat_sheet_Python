@@ -2223,6 +2223,35 @@ class FileState(Enum):
 FileState.OPENED.value  # opened
 \end{lstlisting}
 
+Полезные замечания по перечислениям \url{https://realpython.com/python-enum/}. Значения элементов перечисления могут быть числом, строкой или любым другим объектом. Перечисления поддерживают операторы \verb|in| и \verb*|not in|.
+
+Для того чтобы не повторять имена элементов в качестве значений, можно воспользоваться следующим приемом
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from enum import Enum, auto
+
+
+class SolverStatus(Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name.upper()
+    
+    OPTIMAL = auto()    
+    INFEASIBLE = auto()
+
+SolverStatus.OPTIMAL  # <SolverStatus.OPTIMAL: 'OPTIMAL'>
+\end{lstlisting}
+
+Перечисления поддерживают два типа операторов сравнения:
+\begin{enumerate}
+	\item \verb*|is|, \verb*|is not|,
+	
+	\item \verb*|==|, \verb*|!=|.
+\end{enumerate}
+
+Сравнение элементов двух различных перечислений всегда возвращает \verb*|False|.
+
 В принципе поведение перечисления можно сымитировать с помощью именованного кортежа
 \begin{lstlisting}[
 style = ironpython,
