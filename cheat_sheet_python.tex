@@ -1729,6 +1729,42 @@ class ConsistencyValidator:
 instance.__dict__[self.storage_name] = value
 \end{lstlisting}
 
+Или так, в более компактной форме
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class ConsistencyValidator:
+	"""Checks consistency for 'problem' and 'params' attrs"""
+
+	def __set_name__(self, owner, name):
+		self.storage_name = name
+
+	def __set__(self, instance, value):
+		if self.storage_name in {"problem", "params"}:
+			_attr_name = self.storage_name
+			_attr_path_name = f"path_to_{_attr_name}"
+			_record = (
+				_attr_name,
+				value,
+				_attr_path_name,
+				operator.attrgetter(_attr_path_name)(instance),
+			)
+		else:
+			raise ValueError(
+				f"Error! Validator {type(self).__name__!r} only makes sense "
+				"for the 'problem' and 'params' attributes. "
+				f"And you're trying to apply it to an attribute: {self.storage_name!r}"
+		)
+
+		if (value is not None) and (_record[-1] is not None):
+			raise ValueError(ERROR_CHOOSE_ONE_THING_MSG.format(*_record))
+		elif (value is None) and (_record[-1] is None):
+			raise ValueError(ERROR_SET_EITHER_MSG.format(*_record))
+
+		instance.__dict__[self.storage_name] = value
+\end{lstlisting}
+
 В Python существует важная асимметрия. \emph{При чтении} атрибута через экземпляр обычно возвращается атрибут, определенный в этом экземпляре, а если такого атрибута в экземпляре не существует, то атрибут класса. С другой стороны, в случае \emph{присваивания} атрибуту экземпляра обычно создается атрибут в этом экземпляре, а класс вообще никак не задействуется.
 
 Эта асимметрия распространяется и на дескрипторы, в результате чего образуются две категории дескрипторов, различающиеся наличием или отсутствием метода \verb|__set__|. Если \verb*|__set__| присутствует, то класс является \emph{переопределяющим дескриптором}, а иначе \emph{непереопределяющим} \cite[\strbook{820}]{ramalho:python-2022}.
