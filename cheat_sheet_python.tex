@@ -1694,6 +1694,41 @@ class NonBlank(Validated):
         return value
 \end{lstlisting}
 
+Если требуется задействовать не только целевой атрибут, значение которого валидируется, но в том числе и прочие атрибуты, то можно делать так
+
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+class ConsistencyValidator:
+	"""Checks consistency for 'problem' and 'params' attrs"""
+	def __set_name__(self, owner, name):
+		self.storage_name = name
+
+	def __set__(self, instance, value):
+		if self.storage_name == "problem":
+			_values = ("problem", value, "path_to_problem", instance.path_to_problem)
+
+			if (value is not None) and (instance.path_to_problem is not None):
+				raise ValueError(ERROR_CHOOSE_ONE_THING_MSG.format(*_values))
+			elif (value is None) and (instance.path_to_problem is None):
+				raise ValueError(ERROR_SET_EITHER_MSG.format(*_values))
+		elif self.storage_name == "params":
+			_values = ("params", value, "path_to_params", instance.path_to_params)
+
+			if (value is not None) and (instance.path_to_params is not None):
+				raise ValueError(ERROR_CHOOSE_ONE_THING_MSG.format(*_values))
+			elif (value is None) and (instance.path_to_params is None):
+				raise ValueError(ERROR_SET_EITHER_MSG.format(*_values))
+		else:
+			raise ValueError(
+				"Error! this validator only makes sense "
+				"for the 'problem' and 'params' parameters"
+			)
+
+instance.__dict__[self.storage_name] = value
+\end{lstlisting}
+
 В Python существует важная асимметрия. \emph{При чтении} атрибута через экземпляр обычно возвращается атрибут, определенный в этом экземпляре, а если такого атрибута в экземпляре не существует, то атрибут класса. С другой стороны, в случае \emph{присваивания} атрибуту экземпляра обычно создается атрибут в этом экземпляре, а класс вообще никак не задействуется.
 
 Эта асимметрия распространяется и на дескрипторы, в результате чего образуются две категории дескрипторов, различающиеся наличием или отсутствием метода \verb|__set__|. Если \verb*|__set__| присутствует, то класс является \emph{переопределяющим дескриптором}, а иначе \emph{непереопределяющим} \cite[\strbook{820}]{ramalho:python-2022}.
