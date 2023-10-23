@@ -490,7 +490,20 @@ def tag(
     ...
 \end{lstlisting}
 
-Внутри функции \verb*|content| будет иметь тип \verb|tuple[str, ...]|, а \verb*|attrs| -- тип \verb|dict[str, str]|. Если бы аннотация имела вид \verb*|**attrs: float|, то аргумент \verb*|attr| имел бы тип \verb|dict[str, float]|.
+Внутри функции \verb*|content| будет иметь тип \verb|tuple[str, ...]|, а \verb*|attrs| -- тип \verb|dict[str, str]|. Если бы аннотация имела вид \verb|**attrs: float|, то аргумент \verb*|attr| имел бы тип \verb|dict[str, float]|.
+
+Для того чтобы блок проверки условий выглядел завершенным, то есть содержал ветки \verb*|if|, \verb*|elif| и \verb*|else| даже в тех случах, когда логика ветки \verb*|else| обрабатывается где-то в другом месте (например, в валидаторе), можно использовать такую функцию
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import typing as t
+
+def assert_never(_: t.NoReturn) -> t.NoReturn:
+    raise AssertationError("Error! Expected code to be unreachable")
+\end{lstlisting}
+
+Начиная с версии Python 3.11 рекомендуется вместо \verb*|NoReturn| использовать \verb*|Never|, но если проект поддерживает старые версии Python, то документация \url{https://typing.readthedocs.io/en/latest/source/unreachable.html} разрешает использовать \verb*|NoReturn|.
 
 \section{Приемы работы с httpx}
 
