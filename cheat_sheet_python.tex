@@ -503,6 +503,31 @@ def assert_never(_: t.NoReturn) -> t.NoReturn:
     raise AssertationError("Error! Expected code to be unreachable")
 \end{lstlisting}
 
+Пример использования
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+import enum
+from typing_extensions import Never
+
+def assert_never(arg: Never) -> Never:
+	raise AssertionError("Expected code to be unreachable")
+
+class Op(enum.Enum):
+	ADD = 1
+	SUBTRACT = 2
+
+def calculate(left: int, op: Op, right: int) -> int:
+	match op:
+		case Op.ADD:
+			return left + right
+		case Op.SUBTRACT:
+			return left - right
+		case _:
+			assert_never(op)
+\end{lstlisting}
+
 Начиная с версии Python 3.11 рекомендуется вместо \verb*|NoReturn| использовать \verb*|Never|, но если проект поддерживает старые версии Python, то документация \url{https://typing.readthedocs.io/en/latest/source/unreachable.html} разрешает использовать \verb*|NoReturn|.
 
 \section{Приемы работы с httpx}
