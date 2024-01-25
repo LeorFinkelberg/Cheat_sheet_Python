@@ -355,6 +355,7 @@ numbers = none
 #!python
 
 import click
+from zyopt.common.validators import ValidSolverName
 
 @click.command(
     name="zyopt-cli",
@@ -385,9 +386,21 @@ import click
 	),
 	default=0.95,
 )
+@click.option(
+	"-snrp",
+	"--solver-name-relax-phase",
+	type=click.Choice(
+	    tuple(elem.value for elem in ValidSolverName),
+	    case_sensitive=False,
+	),
+	default=ValidSolverName.HIGHS.value.lower(),
+	help="Solver name of RELAX-phase",
+)
 def main(
     path_to_problem,
     use_warm_start,
+    selected_vars_ratio,
+    solver_name_relax_phase,
 ):
     pass
     
