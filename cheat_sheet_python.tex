@@ -327,7 +327,82 @@ numbers = none
 $ pip install --no-deps -r req.txt
 \end{lstlisting}
 
+\section{Приемы работы с пакетом Click}
 
+Click поддерживает два типа параметров для сценариев: опции (options) и аргументы (arguments). В документации \url{https://click.palletsprojects.com/en/8.1.x/parameters/} говорится, что \emph{аргументы} рекомендуется использовать для перехода к подкомандам или входным файлам, URLs etc., а для всего остального -- \emph{опции}.
+
+Аргументы умеют меньше, чем параметры. Однако по умолчанию аргументы, в отличие от опций, могут принимать произвольное количество аргументов. Опции могут принимать только заданное количество аргументов (по умолчанию 1).
+
+По умолчанию {параметры}-опции (options), которые объявляются с помощью декоратора \verb|@click.option()|, необязательны. Чтобы сделать \emph{опциональный параметр обязательным} нужно просто передать \verb|requried=True| \url{https://click.palletsprojects.com/en/8.1.x/options/}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+@click.command()
+@click.option("--n", requried=True, type=int)
+def dots(n):
+    click.echo("-" * n)
+    
+if __name__ == "__main__":
+    dots()
+\end{lstlisting}
+
+Пример интерфейса командной строки для пакета ZyOpt
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+#!python
+
+import click
+
+@click.command(
+    name="zyopt-cli",
+    help="Solves MILP-problems with stochastic and ML-approches.",
+)
+@click.option(
+    "-ptb",
+    "--path-to-problem",
+    type=click.Path(
+        exists=True,
+        file_okay=True,
+        readable=True,
+    )
+)
+@click.option(
+    # понимает true/false, t/f, yes/no, on/off, 1/0
+    "--use-warm-start",
+    type=click.BOOL,
+    default=True,
+)
+@click.option(
+	"-svr",
+	"--selected-vars-ratio",
+	type=click.FloatRange(
+		min=0.01,
+		max=0.99,
+		clamp=True,
+	),
+	default=0.95,
+)
+def main(
+    path_to_problem,
+    use_warm_start,
+):
+    pass
+    
+    
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
+
+Вызов
+\begin{lstlisting}[
+style = bash,
+numbers = none
+]
+$ ./zyopt_cli.py --path-to-problem ./problem.mps --use-warm-start on ...
+\end{lstlisting}
 
 \section{Аннотация типов}
 
