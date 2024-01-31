@@ -45,6 +45,29 @@
 
 Все функциональные возможности языка, включая присваивание значений переменным, определение функций и классов, импортирование модулей, реализованы в виде инструкций, обладающих равным положением со всеми остальными инструкциями.
 
+\section{Установка Python-пакетов из репозитория}
+
+Пакет можно сразу установить из репозитория
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+$ python -m pip install git+https://github.com/autonlab/wasel#egg=weasel[all]
+\end{lstlisting}
+
+Или так
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+$ git clone https://github.com/autonlab/weasel.git
+$ cd weasel
+$ pip install -e .[all]
+\end{lstlisting}
+
+
+
+
 \section{Соглашения по именованию классов, функций и переменных}
 
 Шаблон именования функции (P)A/HC/LC
