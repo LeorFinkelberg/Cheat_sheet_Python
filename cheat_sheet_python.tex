@@ -65,7 +65,53 @@ $ cd weasel
 $ pip install -e .[all]
 \end{lstlisting}
 
+\section{Пример настройки CI в GitLab}
 
+\begin{lstlisting}[
+title = {\sffamily .gitlab-ci.yaml},
+style = bash,
+numbers = none
+]
+variables:
+	LANGUAGE: "python"
+	SKIP_SONARQUBE_JOB: "true"
+	SKIP_PYTHON_TEST: "true"
+
+include:
+	- project: "$CI_PIPELINE_PROJECT"   
+	ref: "$CI_PIPELINE_VERSION"       
+	file: "$CI_PIPELINE_FILE"         
+
+Build Python package:
+	rules:
+		# Ability to skip a stage
+		- if: $SKIP_PYTHON_PACKAGE_BUILD =~ /^(true|yes|on|1)$/i
+		when: never
+
+	# Don't run for Dependabot commit branch
+	- if: $CI_COMMIT_BRANCH =~ /^dependabot-.*$/
+		when: never
+
+	# Skip branch pipeline if MR opened for exclude duplications
+	- if: >-
+		$CI_COMMIT_BRANCH != null &&
+		$CI_PIPELINE_SOURCE == 'push' &&
+		$CI_OPEN_MERGE_REQUESTS != null
+	when: never
+
+	# Run if project is python language
+	- if: >-
+		$CI_COMMIT_TAG =~ /^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$/i
+		&& (
+			$LANGUAGE =~ /^(python)\b/i ||
+			(
+				$LANGUAGE == null &&
+				$CI_PROJECT_REPOSITORY_LANGUAGES =~ /^(python)\b/i
+			)
+		)
+	exists:
+	- setup.py
+\end{lstlisting}
 
 
 \section{Соглашения по именованию классов, функций и переменных}
