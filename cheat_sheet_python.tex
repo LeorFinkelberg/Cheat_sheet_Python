@@ -65,6 +65,15 @@ $ cd weasel
 $ pip install -e .[all]
 \end{lstlisting}
 
+При установке пакета в <<редактируемом>> режиме (editable mode) \url{https://pip.pypa.io/en/stable/topics/local-project-installs/#editable-installs}
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+$ pip install -e .
+\end{lstlisting}
+никакие файлы не копируются. Это удобно, когда требуется, например, внести изменения в проекты с открытым исходным кодом. Устанавливаем проект в редактируемом режиме, вносим изменения, тестируем их и затем отправляем Pull Request. 
+
 \section{Пример настройки CI в GitLab}
 
 \begin{lstlisting}[
