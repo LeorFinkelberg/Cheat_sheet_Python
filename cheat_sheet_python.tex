@@ -613,6 +613,31 @@ Callable[..., ReturnType]
 
 Если даны тип \verb*|T1| и подтип \verb*|T2|, то \verb*|T2| \emph{совместим} с типом \verb*|T1| (подстановка Лисков) \cite[\strbook{268}]{ramalho:python-2022}.
 
+\verb*|Annotated| можно использовать, если требуется добавить \emph{контекст для типа}, например
+\begin{lstlisting}[
+style = ironpython,
+numbers = none
+]
+from typing import Annotated  # Python 3.9 or above
+from typing_extensions import Annotated  # Older than 3.9
+import pandas as pd
+from bentoml.validators import DataframeSchema
+
+@bentoml.service
+class IrisClassifier:
+	@bentoml.api
+	def classify(
+		self,
+		input_: Annotated[  # NB
+		    pd.Dataframe,
+		    DataframeSchema(orient="records", columns=["petal_length", "petal_width"])
+		]
+	) -> int:
+		# Classification logic using the input DataFrame
+		...
+\end{lstlisting}
+
+
 \subsection{Вариантность в типах Callable}
 
 Пусть есть функция высшего порядка, которая принимает два вызываемых объекта
